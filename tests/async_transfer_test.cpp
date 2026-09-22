@@ -3,6 +3,7 @@
 #include <iostream>
 #include <memory>
 #include <random>
+#include <cmath>
 
 #define CHECK(c) do { if (!(c)) throw std::runtime_error("check failed: " #c); } while (false)
 template<class Error, class F> void throws(F fn) {
@@ -34,6 +35,7 @@ void batch_roundtrip(std::size_t n) {
         for (auto& byte : expected) byte = static_cast<unsigned char>(random());
         input.copy_from(expected.data(), expected.size());
         runtime.write_batch(blocks, input);
+        CHECK(runtime.metrics().cpu_to_gpu.batches == static_cast<std::size_t>(round));
         CHECK(input.busy() && runtime.pending_batches() == 1);
         CHECK(pool.ref_count(blocks[0]) == 2);
         throws<std::logic_error>([&] { input.data(); });
@@ -49,6 +51,17 @@ void batch_roundtrip(std::size_t n) {
         runtime.synchronize();
         output.copy_to(actual.data(), actual.size());
         CHECK(expected == actual);
+        const auto m = runtime.metrics();
+        CHECK(m.cpu_to_gpu.bytes == (round + 1) * n * bytes);
+        CHECK(m.gpu_to_cpu.bytes == m.cpu_to_gpu.bytes);
+        CHECK(m.cpu_to_gpu.batches == static_cast<std::size_t>(round + 1));
+        CHECK(m.gpu_to_cpu.batches == m.cpu_to_gpu.batches);
+        CHECK(m.cpu_to_gpu.device_ms > 0 && m.gpu_to_cpu.device_ms > 0);
+        CHECK(std::isfinite(m.cpu_to_gpu.bandwidth_gbps()) && m.cpu_to_gpu.bandwidth_gbps() > 0);
+        CHECK(m.failed_batches == 0);
+        runtime.synchronize(); // 重复同步不能重复计数。
+        CHECK(runtime.metrics().cpu_to_gpu.bytes == m.cpu_to_gpu.bytes);
+        CHECK(runtime.metrics().cpu_to_gpu.device_ms == m.cpu_to_gpu.device_ms);
     }
     throws<std::invalid_argument>([&] { runtime.write_batch({}, input); });
     PinnedBuffer wrong(1);
@@ -63,6 +76,7 @@ void batch_roundtrip(std::size_t n) {
         CHECK(!input.busy() && runtime.pending_batches() == 0);
     }
     for (auto h : blocks) pool.release(h);
+    CHECK(runtime.metrics().failed_batches == 0); // 参数拒绝不属于已提交 DMA 失败。
 }
 
 void lifetime_and_events() {

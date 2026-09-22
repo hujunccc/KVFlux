@@ -2,6 +2,7 @@
 #include "kvflux/cuda_stream.h"
 #include "kvflux/gpu_memory_pool.h"
 #include "kvflux/pinned_memory.h"
+#include "kvflux/metrics.h"
 #include <memory>
 #include <vector>
 
@@ -22,6 +23,7 @@ public:
     // 统一等待，之后更新初始化状态并归还运行时引用，不逐块 host 等待。
     void synchronize();
     std::size_t pending_batches() const noexcept { return pending_.size(); }
+    TransferMetrics metrics() const noexcept { return metrics_; }
     const CudaStream& compute_stream() const noexcept { return compute_; }
     const CudaStream& transfer_stream() const noexcept { return transfer_; }
     // GPU 侧依赖：让随后提交到 compute stream 的任务等待当前已提交的传输。
@@ -34,5 +36,8 @@ private:
     GpuMemoryPool& pool_;
     CudaStream compute_, transfer_;
     std::vector<std::unique_ptr<Pending>> pending_;
+    // 复用完成 batch 的 CUDA event，避免 steady state 每次迁移创建/销毁 event。
+    std::vector<std::unique_ptr<Pending>> recycled_;
+    TransferMetrics metrics_;
 };
 } // namespace kvflux

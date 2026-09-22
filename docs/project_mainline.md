@@ -52,6 +52,16 @@ flowchart TD
 
 Pinned host staging、异步 H2D/D2H、独立 compute/transfer streams、N-block batch 和 event 依赖已实现。真实 GPU 基准对比 pageable/pinned/staging、同步/异步，以及 1–32 块吞吐，包含可导出的图表。见 [异步传输说明](async_transfer.md)。
 
+## v1.6–v1.8 已完成
+
+引入独立逻辑句柄和 `GPU_RESIDENT / CPU_RESIDENT / TRANSFERRING` 状态。GPU 满时，v0 共用的下标 LRU 链表用于选择搬到 CPU 的块；逻辑引用保留数据，GPU lease 保护正在计算的物理地址。8 个 GPU 槽位可承载 12 个逻辑块，数据经双向迁移后保持一致。
+
+Next-N 预取在计算期间提前搬入后续块，满池时先异步搬出、由 poll 推进装入。无预取与 next-1/2/4 的实测同时记录 request stall 和总耗时。见 [分层接口与复现](tiered_cache.md) 和 [验收报告](../benchmark/results/rtx3060-prefetch/report.md)。当前分层接口按完整数据块工作，尚未与 v0 的 token/prefix 模拟接口合并。
+
+## v1.9–v1.10 已完成
+
+v1.9–v1.10 已完成自有 metrics 和 A/B/C 实验；五个 Epic 与六项验收见 [v1 完成报告](v1_completion.md)。最终边界为单 GPU、GPU/CPU 两层内存运行时；未加入 PagedAttention、forward、continuous batching、分布式、RDMA、NVMe、多 GPU、框架集成、KV 压缩或量化。
+
 ## 后续里程碑（尚未实现）
 
 | 阶段 | 目标 | 验收重点 |

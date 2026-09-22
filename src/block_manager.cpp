@@ -6,7 +6,7 @@
 namespace kvflux {
 
 BlockManager::BlockManager(std::size_t capacity, std::size_t block_size, Hasher hasher)
-    : slots_(capacity), block_size_(block_size), hasher_(std::move(hasher)) {
+    : slots_(capacity), block_size_(block_size), hasher_(std::move(hasher)), idle_lru_(capacity) {
     if (capacity == 0 || block_size == 0 || !hasher_) {
         throw std::invalid_argument("capacity, block size and hasher must be valid");
     }
@@ -29,23 +29,8 @@ BlockManager::Slot& BlockManager::checked(BlockHandle h) {
     return const_cast<Slot&>(static_cast<const BlockManager&>(*this).checked(h));
 }
 
-void BlockManager::unlink_idle(std::size_t id) noexcept {
-    auto& s = slots_[id];
-    if (s.prev == none) oldest_ = s.next;
-    else slots_[s.prev].next = s.next;
-    if (s.next == none) newest_ = s.prev;
-    else slots_[s.next].prev = s.prev;
-    s.prev = s.next = none;
-}
-
-void BlockManager::append_idle(std::size_t id) noexcept {
-    auto& s = slots_[id];
-    s.prev = newest_;
-    s.next = none;
-    if (newest_ == none) oldest_ = id;
-    else slots_[newest_].next = id;
-    newest_ = id;
-}
+void BlockManager::unlink_idle(std::size_t id) noexcept { idle_lru_.erase(id); }
+void BlockManager::append_idle(std::size_t id) noexcept { idle_lru_.touch(id); }
 
 void BlockManager::erase_cache(std::size_t id) {
     auto& s = slots_[id];
@@ -58,7 +43,7 @@ void BlockManager::erase_cache(std::size_t id) {
 }
 
 BlockHandle BlockManager::allocate() {
-    const auto id = free_head_ != none ? free_head_ : oldest_;
+    const auto id = free_head_ != none ? free_head_ : idle_lru_.oldest();
     if (id == none) throw CapacityError();
     auto& s = slots_[id];
     if (s.generation == std::numeric_limits<std::uint64_t>::max()) {

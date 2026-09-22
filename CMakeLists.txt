@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(KVFlux VERSION 1.5.0 LANGUAGES CXX)
+project(KVFlux VERSION 1.10.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -11,14 +11,14 @@ option(KVFLUX_BUILD_BENCHMARKS "Build KVFlux benchmarks" OFF)
 option(KVFLUX_BUILD_EXAMPLES "Build KVFlux examples" ON)
 option(KVFLUX_ENABLE_CUDA "Build the real CUDA GPU memory pool" OFF)
 
-add_library(kvflux src/block_manager.cpp src/kv_layout.cpp)
+add_library(kvflux src/block_manager.cpp src/kv_layout.cpp src/metrics.cpp)
 add_library(KVFlux::kvflux ALIAS kvflux)
 target_include_directories(kvflux PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_compile_features(kvflux PUBLIC cxx_std_17)
 if(KVFLUX_ENABLE_CUDA)
   find_package(CUDAToolkit REQUIRED)
   target_sources(kvflux PRIVATE src/gpu_memory_pool.cpp src/pinned_memory.cpp
-                               src/cuda_stream.cpp src/async_transfer.cpp)
+                               src/cuda_stream.cpp src/async_transfer.cpp src/tiered_block_manager.cpp)
   target_link_libraries(kvflux PUBLIC CUDA::cudart)
 endif()
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
@@ -35,6 +35,8 @@ if(KVFLUX_BUILD_EXAMPLES)
     target_link_libraries(kvflux_gpu_demo PRIVATE KVFlux::kvflux)
     add_executable(kvflux_async_demo examples/async_transfer.cpp)
     target_link_libraries(kvflux_async_demo PRIVATE KVFlux::kvflux)
+    add_executable(kvflux_tiered_demo examples/tiered_cache.cpp)
+    target_link_libraries(kvflux_tiered_demo PRIVATE KVFlux::kvflux)
   endif()
 endif()
 

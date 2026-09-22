@@ -45,7 +45,7 @@ v1.3–v1.5 已实现 pinned host buffer、异步 batch、compute/transfer strea
 
 ### 5. 扩大工程验证与观测
 
-补充跨容量/长度的基准、命中率/淘汰数/分配失败计数、CPU CI 和有 GPU 的 CI。单次热缓存微基准不足以证明真实推理收益。后续接入模型后应验证 K/V 数值与推理结果一致，再评估 layout 是否需要按 layer 连续、对齐或向量化。
+v1.9–v1.10 已补齐容量/迁移/预取 metrics，以及 100/80/30 槽位的局部性和循环扫描实验，见 [最终报告](../benchmark/results/rtx3060-v1/report.md)。实验显示重度压力可达到每次 demand 两次迁移；预取降低 stall 但不减少流量。后续可补充跨长度基准、分配失败计数、CPU CI 和 GPU CI；合成基准不足以证明真实推理收益。后续接入模型后应验证 K/V 数值与推理结果一致，再评估 layout 是否需要按 layer 连续、对齐或向量化。
 
 ## 仍然明确保留的限制
 

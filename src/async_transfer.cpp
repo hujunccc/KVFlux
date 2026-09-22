@@ -6,7 +6,23 @@ namespace kvflux {
 struct AsyncTransferRuntime::Pending {
     std::vector<BlockHandle> blocks;
     std::shared_ptr<PinnedBuffer::Storage> buffer;
-    bool write;
+    bool write = false;
+    int device;
+    cudaEvent_t begin = nullptr, end = nullptr;
+    explicit Pending(int device_id) : device(device_id) {
+        detail::DeviceGuard guard(device);
+        detail::check(cudaEventCreate(&begin), "transfer begin event");
+        try { detail::check(cudaEventCreate(&end), "transfer end event"); }
+        catch (...) { (void)cudaEventDestroy(begin); throw; }
+    }
+    ~Pending() noexcept {
+        int previous = 0;
+        if (cudaGetDevice(&previous) == cudaSuccess && cudaSetDevice(device) == cudaSuccess) {
+            (void)cudaEventDestroy(begin);
+            (void)cudaEventDestroy(end);
+            (void)cudaSetDevice(previous);
+        }
+    }
 };
 
 AsyncTransferRuntime::AsyncTransferRuntime(GpuMemoryPool& pool)
@@ -42,8 +58,13 @@ void AsyncTransferRuntime::submit(const std::vector<BlockHandle>& blocks, Pinned
         }
         if (!write && !pool_.initialized_[h.id]) throw std::invalid_argument("block has not been written");
     }
-    auto work = std::make_unique<Pending>(Pending{blocks, buffer.storage_, write});
+    auto work = recycled_.empty() ? std::make_unique<Pending>(pool_.device()) : std::move(recycled_.back());
+    if (!recycled_.empty()) recycled_.pop_back();
+    work->blocks = blocks;
+    work->buffer = buffer.storage_;
+    work->write = write;
     pending_.reserve(pending_.size() + 1);
+    recycled_.reserve(recycled_.size() + pending_.size() + 1); // finish() 必须不分配内存。
     detail::DeviceGuard guard(pool_.device());
     std::size_t retained = 0;
     try {
@@ -59,6 +80,7 @@ void AsyncTransferRuntime::submit(const std::vector<BlockHandle>& blocks, Pinned
     }
     pending_.push_back(std::move(work)); // 已 reserve；从此异常路径也能统一清理。
     try {
+        detail::check(cudaEventRecord(pending_.back()->begin, transfer_.native_handle()), "record transfer begin");
         auto* host = static_cast<unsigned char*>(buffer.storage_->pointer);
         for (std::size_t i = 0; i < blocks.size(); ++i) {
             auto* gpu = pool_.device_address(blocks[i]);
@@ -67,6 +89,7 @@ void AsyncTransferRuntime::submit(const std::vector<BlockHandle>& blocks, Pinned
                           pool_.block_bytes(), write ? cudaMemcpyHostToDevice : cudaMemcpyDeviceToHost,
                           transfer_.native_handle()), "batch cudaMemcpyAsync");
         }
+        detail::check(cudaEventRecord(pending_.back()->end, transfer_.native_handle()), "record transfer end");
     } catch (...) {
         // 部分提交失败时也必须等已提交的 DMA 结束，不能提前销毁 buffer。
         (void)cudaStreamSynchronize(transfer_.native_handle());
@@ -76,6 +99,7 @@ void AsyncTransferRuntime::submit(const std::vector<BlockHandle>& blocks, Pinned
 }
 
 void AsyncTransferRuntime::finish(bool success) noexcept {
+    if (!success) metrics_.failed_batches += pending_.size();
     for (auto& work : pending_) {
         for (auto h : work->blocks) {
             if (work->write) pool_.initialized_[h.id] = success;
@@ -83,12 +107,28 @@ void AsyncTransferRuntime::finish(bool success) noexcept {
             pool_.release(h); // 归还运行时持有的引用；调用者可能已经释放自己的引用。
         }
         work->buffer->busy = false;
+        work->buffer.reset();
+        work->blocks.clear();
+        recycled_.push_back(std::move(work));
     }
     pending_.clear();
 }
 
 void AsyncTransferRuntime::synchronize() {
-    try { transfer_.synchronize(); }
+    try {
+        detail::DeviceGuard guard(pool_.device());
+        transfer_.synchronize();
+        auto updated = metrics_;
+        for (const auto& work : pending_) {
+            float ms = 0;
+            detail::check(cudaEventElapsedTime(&ms, work->begin, work->end), "transfer elapsed time");
+            auto& direction = work->write ? updated.cpu_to_gpu : updated.gpu_to_cpu;
+            direction.bytes += work->buffer->bytes;
+            ++direction.batches;
+            direction.device_ms += ms;
+        }
+        metrics_ = updated;
+    }
     catch (...) { finish(false); throw; }
     finish(true);
 }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "kvflux/detail/index_lru.h"
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -86,8 +87,6 @@ private:
         Tokens prefix;
         std::uint64_t hash = 0;
         std::size_t next_free = none;
-        // 侵入式双向链表：链接直接放进槽位，LRU 操作不再分配内存。
-        std::size_t prev = none, next = none;
     };
     Slot& checked(BlockHandle handle);
     const Slot& checked(BlockHandle handle) const;
@@ -99,7 +98,8 @@ private:
     std::vector<Slot> slots_;
     std::size_t block_size_;
     Hasher hasher_;
-    std::size_t free_head_ = none, oldest_ = none, newest_ = none;
+    std::size_t free_head_ = none;
+    detail::IndexLru idle_lru_;
     std::unordered_map<std::uint64_t, std::vector<std::size_t>> index_;
 };
 

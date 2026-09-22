@@ -1,0 +1,10 @@
+gpu=NVIDIA GeForce RTX 3060 Laptop GPU
+gpu_capacity=8
+cpu_backing_capacity=12
+block_bytes=1048576
+requests=36 (0..11 repeated 3 times)
+initial_state=GPU blocks 4..11, CPU blocks 0..3
+compute_threads=128
+compute_grid=60
+samples=7, one warmup per mode/workload
+polling=host busy polling, no sleep
