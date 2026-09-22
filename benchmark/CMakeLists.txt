@@ -1,0 +1,2 @@
+add_executable(kvflux_benchmark block_manager_benchmark.cpp)
+target_link_libraries(kvflux_benchmark PRIVATE KVFlux::kvflux)
