@@ -1,0 +1,14 @@
+gpu=NVIDIA GeForce RTX 3060 Laptop GPU
+compute_capability=8.6
+sm_count=30
+async_engine_count=2
+device_overlap=1
+runtime=12040
+driver=13020
+compiler=15.2.0
+measurements=median of 9 samples, 2 warmups per mode
+overlap_transfer_bytes=16777216
+fake_compute_iterations=500000
+fake_compute_threads_per_block=128
+fake_compute_grid=2 * sm_count
+bandwidth_unit=decimal GB/s

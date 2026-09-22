@@ -1,2 +1,10 @@
 add_executable(kvflux_benchmark block_manager_benchmark.cpp)
 target_link_libraries(kvflux_benchmark PRIVATE KVFlux::kvflux)
+
+if(KVFLUX_ENABLE_CUDA)
+  # 只有模拟计算基准包含 kernel；核心库仍只依赖 CUDA Runtime。
+  enable_language(CUDA)
+  add_executable(kvflux_transfer_benchmark transfer_benchmark.cpp fake_compute.cu)
+  target_link_libraries(kvflux_transfer_benchmark PRIVATE KVFlux::kvflux)
+  set_target_properties(kvflux_transfer_benchmark PROPERTIES CUDA_STANDARD 17 CUDA_STANDARD_REQUIRED ON)
+endif()

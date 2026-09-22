@@ -41,7 +41,7 @@
 
 位置：`GpuMemoryPool::write_block/read_block`。
 
-当前每次传输一个完整块并同步，适合正确性基线；小块、多请求情况下 API 调用和同步成本会明显。下一步可以做相邻块批量传输和 pinned host buffer，之后再设计 stream/event 接口。引入异步后必须让在途传输也持有块引用，事件完成前不能 release 给下一个请求。
+v1.3–v1.5 已实现 pinned host buffer、异步 batch、compute/transfer streams，以及在途引用保护。实测说明 pinned staging 的 CPU 拷贝可能抵消收益，batch 也不保证线性提速。下一步优先减少 staging 拷贝、合并相邻块、使用双缓冲，再做细粒度完成事件回收。
 
 ### 5. 扩大工程验证与观测
 
@@ -49,4 +49,4 @@
 
 ## 仍然明确保留的限制
 
-单线程、手动引用管理、没有 append/copy-on-write、没有模型推理、没有异步调度。原始 device pointer 是底层逃生接口，外部直接写可以绕过发布保护；它应只交给了解引用和同步约定的后端代码。
+单线程、手动引用管理、没有 append/copy-on-write、没有模型推理、尚未接入真实推理调度器。原始 device pointer 是底层逃生接口，外部直接写可以绕过发布保护；它应只交给了解引用和同步约定的后端代码。

@@ -1,8 +1,16 @@
-# KVFlux v1.2：GPU KV Cache Pool
+# KVFlux v1.5：异步 GPU KV Cache 传输
 
 KVFlux 是学习和实现 LLM 推理 KV cache 基础设施的独立项目。v0 用无第三方依赖的 C++17 实现 block 管理，主线是：**请求 token → 逻辑块 → 前缀查找 → 物理块分配/复用 → 引用释放 → LRU 回收**。
 
-v1.0–v1.2 已在 v0 管理器上接入真实 GPU 显存池、统一 KV 布局和整块 Host ↔ GPU 读写。**尚未接入模型计算或 attention**。不启用 CUDA 时，普通 CPU 仍可运行 v0 和容量估算。
+v1.0–v1.2 已在 v0 管理器上接入真实 GPU 显存池、统一 KV 布局和整块 Host ↔ GPU 读写。v1.3–v1.5 增加 pinned staging buffer、异步批量传输、compute/transfer streams 和真实性能基准。**尚未接入模型计算或 attention**。不启用 CUDA 时，普通 CPU 仍可运行 v0 和容量估算。
+
+## v1.3–v1.5 性能结果
+
+[完整实测报告与图表](benchmark/results/rtx3060/report.md) · [异步接口和复现说明](docs/async_transfer.md)
+
+本机 RTX 3060 Laptop 的 256 MiB H2D：普通内存 **5.52 GB/s**，直接 pinned **6.73 GB/s**，包含 CPU staging **4.60 GB/s**。16 MiB 传输 + 模拟计算的总耗时由 **3.61 ms** 降到 **2.41 ms**。收益取决于数据来源和工作负载，不能只凭用了 pinned/async 就断言更快。
+
+![normal vs pinned 带宽](benchmark/results/rtx3060/bandwidth.png)
 
 ## GPU 版本快速开始
 
@@ -12,6 +20,7 @@ cmake -S . -B build-cuda -DKVFLUX_ENABLE_CUDA=ON \
 cmake --build build-cuda -j 2
 ctest --test-dir build-cuda --output-on-failure
 ./build-cuda/kvflux_gpu_demo
+./build-cuda/kvflux_async_demo
 ./build-cuda/kvflux_capacity 1
 ```
 
@@ -32,6 +41,9 @@ ctest --test-dir build-cuda --output-on-failure
 | GPU memory pool | 固定容量一次分配，按 BlockId 定位真实显存，复用 v0 分配器 |
 | KV layout | 统一布局、dtype 字节数、溢出检查、预算容量估算 |
 | Block read/write | 同步整块复制，初始化状态与共享/发布写保护 |
+| Pinned buffer | 可复用的 page-locked host staging，支持 normal ↔ pinned 拷贝 |
+| Async transfer | 两条 non-blocking streams、批量 H2D/D2H、在途引用与 buffer 保护 |
+| 性能基准 | 5 种大小、同步/异步计算重叠、1–32 块 batch，CSV + PNG/SVG |
 | v0 模拟序列接口 | acquire、share、release，支持私有尾块和失败引用回滚 |
 
 哈希桶使用标准库 `std::unordered_map`，没有额外实现通用哈希容器。

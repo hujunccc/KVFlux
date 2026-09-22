@@ -48,12 +48,16 @@ flowchart TD
 
 固定 GPU 显存池、统一 KV layout、容量估算、同步整块读写已经落地；真实 GPU 用例验证逐字节一致性。此阶段直接接入 CUDA，不再经过此前设想的 CPU 张量池阶段。详见 [GPU 内存池说明](gpu_memory_pool.md)。
 
+## v1.3–v1.5 已完成
+
+Pinned host staging、异步 H2D/D2H、独立 compute/transfer streams、N-block batch 和 event 依赖已实现。真实 GPU 基准对比 pageable/pinned/staging、同步/异步，以及 1–32 块吞吐，包含可导出的图表。见 [异步传输说明](async_transfer.md)。
+
 ## 后续里程碑（尚未实现）
 
 | 阶段 | 目标 | 验收重点 |
 | --- | --- | --- |
 | v2 | 支持 append、尾块填充和 copy-on-write | 共享请求追加 token 不会修改别人的历史 |
-| v3 | 在已有 GPU 内存池上接入异步执行 | kernel 完成之前不能回收物理块 |
+| v3 | 将异步传输接入真实调度器与计算生命周期 | kernel 完成之前不能回收物理块；支持细粒度事件回收 |
 | v4 | 接入 nano-vllm，加入模型/适配器缓存命名空间 | 真实推理结果一致，复用收益可测量 |
 
 性能优化应在正确性之后推进：增量前缀哈希、共享前缀节点、请求级 RAII、并发保护与缓存指标都可以独立迭代。

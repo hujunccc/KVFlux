@@ -6,6 +6,8 @@
 
 namespace kvflux {
 
+class AsyncTransferRuntime;
+
 using BlockId = std::size_t;
 
 // 固定容量、单 GPU 的显存池。构造时只申请一次显存，析构时统一释放。
@@ -52,7 +54,9 @@ private:
     std::size_t block_bytes_, allocated_bytes_;
     int device_;
     std::vector<bool> initialized_;
+    std::vector<bool> in_flight_;
     void* base_ = nullptr;
+    friend class AsyncTransferRuntime;
 };
 
 } // namespace kvflux

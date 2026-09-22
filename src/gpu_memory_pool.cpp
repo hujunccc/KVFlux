@@ -39,7 +39,7 @@ GpuMemoryPool::GpuMemoryPool(std::size_t blocks, std::size_t bytes,
                              std::size_t tokens_per_block, int device)
     : manager_(checked_pool_bytes(blocks, bytes) / bytes, tokens_per_block),
       block_bytes_(bytes), allocated_bytes_(checked_pool_bytes(blocks, bytes)), device_(device),
-      initialized_(blocks, false) {
+      initialized_(blocks, false), in_flight_(blocks, false) {
     if (device < 0) throw std::invalid_argument("device must be nonnegative");
     int device_count = 0;
     cuda_check(cudaGetDeviceCount(&device_count), "cudaGetDeviceCount");
@@ -87,6 +87,7 @@ void* GpuMemoryPool::device_address(BlockHandle h) const {
 
 void GpuMemoryPool::write_block(BlockHandle h, const void* host, std::size_t bytes) {
     auto* destination = device_address(h);
+    if (in_flight_[h.id]) throw std::logic_error("block transfer is in flight");
     if (!host || bytes != block_bytes_) throw std::invalid_argument("write requires one full host block");
     if (manager_.ref_count(h) != 1 || manager_.is_published(h)) {
         throw std::invalid_argument("cannot overwrite a shared or published block");
@@ -101,6 +102,7 @@ void GpuMemoryPool::write_block(BlockHandle h, const void* host, std::size_t byt
 
 void GpuMemoryPool::read_block(BlockHandle h, void* host, std::size_t bytes) const {
     const auto* source = device_address(h);
+    if (in_flight_[h.id]) throw std::logic_error("block transfer is in flight");
     if (!host || bytes != block_bytes_) throw std::invalid_argument("read requires one full host block");
     if (!initialized_[h.id]) throw std::invalid_argument("block has not been written");
     DeviceGuard guard(device_);
@@ -109,6 +111,7 @@ void GpuMemoryPool::read_block(BlockHandle h, void* host, std::size_t bytes) con
 
 void GpuMemoryPool::publish(BlockHandle h, const Tokens& prefix) {
     (void)device_address(h);
+    if (in_flight_[h.id]) throw std::logic_error("block transfer is in flight");
     if (!initialized_[h.id]) throw std::invalid_argument("cannot publish unwritten GPU block");
     manager_.publish(h, prefix);
 }

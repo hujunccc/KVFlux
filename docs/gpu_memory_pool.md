@@ -70,7 +70,7 @@ pool.release(h);
 
 读写以字节为单位，长度必须等于整块长度，host 指针不能为 null；调用者必须保证缓冲区至少有指定长度。FP16/BF16/FP32 只决定元素宽度，不做数值或 dtype 转换。测试对原始字节精确比较，因此保留所有位模式。
 
-H2D 使用 `cudaMemcpy` 后显式等待默认 stream，D2H 使用同步复制，函数返回后可以安全重用 host 缓冲区。本版不提供异步 stream API，不能一边外部 kernel 访问同一块一边调用 release/读写。CUDA 语义参考 [NVIDIA Runtime Memory Management](https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html)。
+H2D 使用 `cudaMemcpy` 后显式等待默认 stream，D2H 使用同步复制，函数返回后可以安全重用 host 缓冲区。这里描述 v1.2 同步接口；v1.3–v1.5 的异步接口见 [异步传输说明](async_transfer.md)。不能一边外部 kernel 访问同一块一边调用 release/读写。CUDA 语义参考 [NVIDIA Runtime Memory Management](https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY.html)。
 
 为了避免读到旧数据或破坏其他请求：
 

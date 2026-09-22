@@ -1,0 +1,3 @@
+mode,size_bytes,total_ms,transfer_ms,compute_ms,effective_bandwidth_gbps,transfer_bandwidth_gbps,overlap_ms,overlap_ratio,samples
+sync,16777216,3.605342,2.453088,1.139712,4.653433,6.839223,0.000000,0.000000,9
+async,16777216,2.411720,2.403264,1.153024,6.956536,6.981012,1.153024,1.000000,9

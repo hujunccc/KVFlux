@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(KVFlux VERSION 1.2.0 LANGUAGES CXX)
+project(KVFlux VERSION 1.5.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -17,7 +17,8 @@ target_include_directories(kvflux PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_compile_features(kvflux PUBLIC cxx_std_17)
 if(KVFLUX_ENABLE_CUDA)
   find_package(CUDAToolkit REQUIRED)
-  target_sources(kvflux PRIVATE src/gpu_memory_pool.cpp)
+  target_sources(kvflux PRIVATE src/gpu_memory_pool.cpp src/pinned_memory.cpp
+                               src/cuda_stream.cpp src/async_transfer.cpp)
   target_link_libraries(kvflux PUBLIC CUDA::cudart)
 endif()
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
@@ -32,6 +33,8 @@ if(KVFLUX_BUILD_EXAMPLES)
   if(KVFLUX_ENABLE_CUDA)
     add_executable(kvflux_gpu_demo examples/gpu_pool.cpp)
     target_link_libraries(kvflux_gpu_demo PRIVATE KVFlux::kvflux)
+    add_executable(kvflux_async_demo examples/async_transfer.cpp)
+    target_link_libraries(kvflux_async_demo PRIVATE KVFlux::kvflux)
   endif()
 endif()
 
