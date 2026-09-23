@@ -4,6 +4,25 @@ KVFlux 是学习和实现 LLM 推理 KV cache 基础设施的独立项目。v0 �
 
 v2 已开始实施：[Milestone 1 Physical Block Pool](docs/v2_physical_block_pool.md) 将 v0 的分配器用于 GPU KV 物理页编号；[Milestone 2 Block Table](docs/v2_block_table.md) 用 vector 下标表示逻辑块，并映射到可共享的物理编号；[Milestone 3 SequenceState](docs/v2_sequence_state.md) 为每个请求记录 token 数和独立的逻辑块表；[Milestone 4 Dynamic Sequence Growth](docs/v2_dynamic_sequence_growth.md) 在 decode 跨块时才申请新物理页。这些元数据模块都能在 CPU 上运行；真实 KV 存储映射和请求调度属于后续阶段。
 
+## v2 碎片化测试
+
+8 页池先全部分配，再释放奇数页，得到：
+
+```text
+物理页       P0    P1    P2    P3    P4    P5    P6    P7
+状态         used  free  used  free  used  free  used  free
+```
+
+此时有 4 页空闲，但最长连续空闲段只有 1 页。Request X 需要 4 个块（`block_size=16`、共 64 个 token），仍能建立 `BlockTable X = [1, 3, 5, 7]`。逻辑块按顺序排列，物理页无需连续；原先占用 `P0、P2、P4、P6` 的持有者也不受影响。请求销毁后，4 页重新可用。
+
+```bash
+cmake -S . -B build -DKVFLUX_BUILD_TESTS=ON
+cmake --build build -j 2
+ctest --test-dir build -V -R '^kvflux_fragmentation_tests$'
+```
+
+这个用例验证 v2 的物理页**元数据池**、请求和 Block Table；它在 CPU 上运行。v2 映射尚未接入真实 GPU KV 数据存储。
+
 v1.0–v1.2 已在 v0 管理器上接入真实 GPU 显存池、统一 KV 布局和整块 Host ↔ GPU 读写。v1.3–v1.5 增加 pinned staging buffer、异步批量传输、compute/transfer streams 和真实性能基准。v1.6–v1.8 增加稳定逻辑块身份、GPU/CPU 分层、内存压力下的 LRU 搬迁，以及 next-N 预取。v1.9–v1.10 补齐 runtime metrics 和 A/B/C 完整实验，**v1 在单 GPU 内存运行时范围内完成**。尚未接入模型计算或 attention；不启用 CUDA 时，普通 CPU 仍可运行 v0 和容量估算。
 
 ## v1 最终验收

@@ -14,6 +14,10 @@ add_executable(kvflux_sequence_state_tests sequence_state_test.cpp)
 target_link_libraries(kvflux_sequence_state_tests PRIVATE KVFlux::kvflux)
 add_test(NAME kvflux_sequence_state_tests COMMAND kvflux_sequence_state_tests)
 
+add_executable(kvflux_fragmentation_tests fragmentation_test.cpp)
+target_link_libraries(kvflux_fragmentation_tests PRIVATE KVFlux::kvflux)
+add_test(NAME kvflux_fragmentation_tests COMMAND kvflux_fragmentation_tests)
+
 add_executable(kvflux_layout_tests kv_layout_test.cpp)
 target_link_libraries(kvflux_layout_tests PRIVATE KVFlux::kvflux)
 add_test(NAME kvflux_layout_tests COMMAND kvflux_layout_tests)
