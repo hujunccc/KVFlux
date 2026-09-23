@@ -25,7 +25,7 @@ V byte offset = cache_bytes + K byte offset
 
 `page_address(kind, handle)` 和 `element_address(kind, handle, ...)` 先经 v2 页池校验句柄及 generation。Milestone 5 的 `slot_mapping` 给出 `slot = p × block_size + t`；`slot_address(kind, slot, head, dimension)` 把它转换成 K/V 设备地址。slot 只携带编号，不携带引用，因此调用方必须在 GPU 读写完成前保持请求的页引用存活。返回的设备指针不能在 CPU 上解引用；地址查询也不表示内容已初始化。
 
-当前存储层已经可以通过这些设备地址真实写入、读回 K/V；测试用 CUDA 拷贝验证每个布局维度。设备端写入 kernel、slot mapping 上传、异步完成事件和共享页写保护仍由后续计算/调度层完成。布局选择以正确性和易读性为先；更复杂的 coalescing 布局可在 kernel 优化阶段再做。
+当前存储层已经可以通过这些设备地址真实写入、读回 K/V；测试用 CUDA 拷贝验证每个布局维度。[Paged KV Write](v2_paged_kv_write.md) 已加入设备端写入 kernel 和 slot mapping 上传。异步完成事件、设备读取和共享页写保护仍由后续计算/调度层完成。布局选择以正确性和易读性为先；更复杂的 coalescing 布局可在 kernel 优化阶段再做。
 
 ## 构建与验证
 

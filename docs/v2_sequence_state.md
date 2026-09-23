@@ -29,7 +29,7 @@ physical_page = block_table[logical_block]
 
 `num_allocated_blocks` 直接取表长，始终等于 `ceil(num_tokens / block_size)`；`last_block_num_tokens` 由 token 数计算，因此不会与表产生两份独立状态。表只对外提供只读访问。请求可以移动，不可复制；物理页池必须比请求活得更久。
 
-单 token decode 追加与非连续物理页的例子见 [Milestone 4：Dynamic Sequence Growth](v2_dynamic_sequence_growth.md)。请求本身只管理逻辑 token 位置和物理页编号；[Paged KV Storage](v2_paged_kv_storage.md) 负责真实 GPU 地址。共享尾块的写时复制、设备写入 kernel 和计算调度属于后续阶段。
+单 token decode 追加与非连续物理页的例子见 [Milestone 4：Dynamic Sequence Growth](v2_dynamic_sequence_growth.md)。请求本身只管理逻辑 token 位置和物理页编号；[Paged KV Storage](v2_paged_kv_storage.md) 负责真实 GPU 地址，[Paged KV Write](v2_paged_kv_write.md) 负责设备端写入。共享尾块的写时复制和计算调度属于后续阶段。
 
 ## 运行
 

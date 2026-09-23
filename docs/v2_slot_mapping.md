@@ -36,4 +36,4 @@ ctest --test-dir build --output-on-failure
 ./build/kvflux_slot_mapping_demo
 ```
 
-当前模块在 CPU 控制面生成数组；[Paged KV Storage](v2_paged_kv_storage.md) 已能将 slot 换算为真实 GPU 地址。设备上传、K/V 写入 kernel 和执行期页生命周期管理尚未接入。
+当前模块在 CPU 控制面生成数组；[Paged KV Storage](v2_paged_kv_storage.md) 将 slot 换算为真实 GPU 地址，[Paged KV Write](v2_paged_kv_write.md) 将数组上传并由 CUDA kernel 写入 K/V。执行期页生命周期管理尚未接入。

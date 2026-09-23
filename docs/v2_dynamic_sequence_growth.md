@@ -14,7 +14,7 @@ decode 时，请求每次新增一个 token。`SequenceState::append_token()` �
 
 单 token 追加沿用 [SequenceState](v2_sequence_state.md) 的分配和回滚规则：池已满时抛 `CapacityError`，token 数、Block Table 和已有物理页引用保持原样。`append_tokens(count)` 仍可用于一次预留多个 token，例如 prompt 初始化；调用失败时本次新申请的页会全部归还。
 
-返回的位置标识物理页及页内 token 偏移；[Paged KV Storage](v2_paged_kv_storage.md) 已能换算成真实 GPU 地址。共享尾块的写时复制和设备写入 kernel 仍属后续里程碑。
+返回的位置标识物理页及页内 token 偏移；[Paged KV Storage](v2_paged_kv_storage.md) 将它换算成真实 GPU 地址，[Paged KV Write](v2_paged_kv_write.md) 负责设备端写入。共享尾块的写时复制仍属后续里程碑。
 
 ## 运行示例
 
