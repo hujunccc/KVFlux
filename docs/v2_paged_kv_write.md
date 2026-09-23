@@ -27,4 +27,4 @@ ctest --test-dir build-cuda --output-on-failure
 ./build-cuda/kvflux_paged_kv_write_demo
 ```
 
-真实 GPU 测试从三个 `SequenceState` 生成上述 slot，检查所有 head/dimension 的 K/V 逐字节读回，以及相邻槽位不被覆盖。设备端读取/attention kernel、跨层批量调度、共享尾块写时复制和异步完成事件仍属后续阶段。
+真实 GPU 测试从三个 `SequenceState` 生成上述 slot，检查所有 head/dimension 的 K/V 逐字节读回，以及相邻槽位不被覆盖。后续 [Paged KV Read](v2_paged_kv_read.md) 已提供按 Block Table 逐页读取的 GPU 路径；attention kernel、跨层批量调度、共享尾块写时复制和异步完成事件仍属后续阶段。

@@ -21,6 +21,7 @@ public:
 
     const PagedKVLayout& layout() const noexcept { return layout_; }
     int device() const noexcept { return backing_.device(); }
+    bool uses_pool(const BlockTable& table) const noexcept { return table.uses_pool(pool_); }
     void* key_base() const;
     void* value_base() const;
 

@@ -13,7 +13,8 @@ option(KVFLUX_ENABLE_CUDA "Build the real CUDA GPU memory pool" OFF)
 
 add_library(kvflux src/block_manager.cpp src/physical_block_pool.cpp
                    src/v2/block_table.cpp src/v2/sequence_state.cpp src/v2/slot_mapping.cpp
-                   src/v2/paged_kv_layout.cpp src/kv_layout.cpp src/metrics.cpp)
+                   src/v2/paged_kv_layout.cpp src/v2/paged_kv_read_table.cpp
+                   src/kv_layout.cpp src/metrics.cpp)
 add_library(KVFlux::kvflux ALIAS kvflux)
 target_include_directories(kvflux PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_compile_features(kvflux PUBLIC cxx_std_17)
@@ -24,7 +25,8 @@ if(KVFLUX_ENABLE_CUDA)
   find_package(CUDAToolkit REQUIRED)
   target_sources(kvflux PRIVATE src/gpu_memory_pool.cpp src/pinned_memory.cpp
                                src/cuda_stream.cpp src/async_transfer.cpp src/tiered_block_manager.cpp
-                               src/v2/paged_kv_storage.cpp src/v2/paged_kv_write.cu)
+                               src/v2/paged_kv_storage.cpp src/v2/paged_kv_write.cu
+                               src/v2/paged_kv_read.cu)
   target_link_libraries(kvflux PUBLIC CUDA::cudart)
 endif()
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
@@ -51,6 +53,8 @@ if(KVFLUX_BUILD_EXAMPLES)
     target_link_libraries(kvflux_paged_kv_storage_demo PRIVATE KVFlux::kvflux)
     add_executable(kvflux_paged_kv_write_demo examples/paged_kv_write.cpp)
     target_link_libraries(kvflux_paged_kv_write_demo PRIVATE KVFlux::kvflux)
+    add_executable(kvflux_paged_kv_read_demo examples/paged_kv_read.cpp)
+    target_link_libraries(kvflux_paged_kv_read_demo PRIVATE KVFlux::kvflux)
     add_executable(kvflux_gpu_demo examples/gpu_pool.cpp)
     target_link_libraries(kvflux_gpu_demo PRIVATE KVFlux::kvflux)
     add_executable(kvflux_async_demo examples/async_transfer.cpp)

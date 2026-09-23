@@ -42,6 +42,7 @@ public:
     bool shares_pool_with(const BlockTable& other) const noexcept {
         return pool_ && pool_ == other.pool_;
     }
+    bool uses_pool(const PhysicalBlockPool& pool) const noexcept { return pool_ == &pool; }
 
     // 删除表尾映射并归还它持有的引用；不能在 GPU 仍使用该页时调用。
     void pop_back();
