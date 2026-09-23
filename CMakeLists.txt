@@ -11,7 +11,8 @@ option(KVFLUX_BUILD_BENCHMARKS "Build KVFlux benchmarks" OFF)
 option(KVFLUX_BUILD_EXAMPLES "Build KVFlux examples" ON)
 option(KVFLUX_ENABLE_CUDA "Build the real CUDA GPU memory pool" OFF)
 
-add_library(kvflux src/block_manager.cpp src/physical_block_pool.cpp src/v2/block_table.cpp
+add_library(kvflux src/block_manager.cpp src/physical_block_pool.cpp
+                   src/v2/block_table.cpp src/v2/sequence_state.cpp
                    src/kv_layout.cpp src/metrics.cpp)
 add_library(KVFlux::kvflux ALIAS kvflux)
 target_include_directories(kvflux PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -35,6 +36,8 @@ if(KVFLUX_BUILD_EXAMPLES)
   target_link_libraries(kvflux_physical_pool_demo PRIVATE KVFlux::kvflux)
   add_executable(kvflux_block_table_demo examples/block_table.cpp)
   target_link_libraries(kvflux_block_table_demo PRIVATE KVFlux::kvflux)
+  add_executable(kvflux_sequence_state_demo examples/sequence_state.cpp)
+  target_link_libraries(kvflux_sequence_state_demo PRIVATE KVFlux::kvflux)
   if(KVFLUX_ENABLE_CUDA)
     add_executable(kvflux_gpu_demo examples/gpu_pool.cpp)
     target_link_libraries(kvflux_gpu_demo PRIVATE KVFlux::kvflux)
