@@ -16,7 +16,7 @@ flowchart TD
     F --> G[Paged KV Access / 简化 Attention]
 ```
 
-例如一个请求的第 0、1、2 个块是**逻辑位置**，block table 将它们映射到物理编号 `7、3、9`。当多个请求共享同一段 KV 时，可以在各自的表中指向同一物理编号，并为它增加引用。GPU 存储层再根据编号找到 K/V 数据。当前只实现图中的 `PhysicalBlockPool`；表、存储映射和计算沿调用链逐步接入。
+例如一个请求的第 0、1、2 个块是**逻辑位置**，block table 将它们映射到物理编号 `7、3、9`。当多个请求共享同一段 KV 时，可以在各自的表中指向同一物理编号，并为它增加引用。[v2 Block Table](v2_block_table.md) 现已实现这层映射；GPU 存储层和计算会沿调用链继续接入。
 
 ## 编号与地址
 
@@ -51,4 +51,4 @@ ctest --test-dir build --output-on-failure
 
 v1 的 `GpuMemoryPool` 继续承担原有连续显存、同步读写和前缀缓存功能。v2 的物理页池先独立出来，让元数据与存储地址明确分开。后续接入 `PagedKVStorage` 时，它可预先申请 GPU KV 内存，并依据物理编号定位 K/V；物理页池自身无需知道 CUDA 地址。
 
-当前没有 request、block table、paged attention 或 CUDA kernel 调用。句柄仅在创建它的池内有效；普通复制不增加引用，也不能跨线程直接操作。GPU kernel 若仍在使用某一页，调用方必须等它完成后再释放最后一个引用；本阶段尚无异步生命周期管理。
+当前没有 request、paged attention 或 CUDA kernel 调用。句柄仅在创建它的池内有效；普通复制不增加引用，也不能跨线程直接操作。GPU kernel 若仍在使用某一页，调用方必须等它完成后再释放最后一个引用；本阶段尚无异步生命周期管理。
