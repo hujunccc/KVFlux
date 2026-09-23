@@ -1,12 +1,16 @@
-# KVFlux：v1 分层 KV Cache 与 v2 物理页池
+# KVFlux：v1 分层 KV Cache 与 v2 Paged KV Storage
 
 KVFlux 是学习和实现 LLM 推理 KV cache 基础设施的独立项目。v0 用无第三方依赖的 C++17 实现 block 管理，主线是：**请求 token → 逻辑块 → 前缀查找 → 物理块分配/复用 → 引用释放 → LRU 回收**。
 
-v2 已开始实施：[Milestone 1 Physical Block Pool](docs/v2_physical_block_pool.md) 将 v0 的分配器用于 GPU KV 物理页编号；[Milestone 2 Block Table](docs/v2_block_table.md) 用 vector 下标表示逻辑块，并映射到可共享的物理编号；[Milestone 3 SequenceState](docs/v2_sequence_state.md) 为每个请求记录 token 数和独立的逻辑块表；[Milestone 4 Dynamic Sequence Growth](docs/v2_dynamic_sequence_growth.md) 在 decode 跨块时才申请新物理页；[Milestone 5 Slot Mapping](docs/v2_slot_mapping.md) 把 batch token 位置转成连续的物理槽位编号数组。这些控制面模块都能在 CPU 上运行；真实 KV 写入和请求调度属于后续阶段。
+v2 已开始实施：[Milestone 1 Physical Block Pool](docs/v2_physical_block_pool.md) 将 v0 的分配器用于 GPU KV 物理页编号；[Milestone 2 Block Table](docs/v2_block_table.md) 用 vector 下标表示逻辑块，并映射到可共享的物理编号；[Milestone 3 SequenceState](docs/v2_sequence_state.md) 为每个请求记录 token 数和独立的逻辑块表；[Milestone 4 Dynamic Sequence Growth](docs/v2_dynamic_sequence_growth.md) 在 decode 跨块时才申请新物理页；[Milestone 5 Slot Mapping](docs/v2_slot_mapping.md) 把 batch token 位置转成连续的物理槽位编号数组；[Milestone 6 Paged KV Storage](docs/v2_paged_kv_storage.md) 把编号接到真实 GPU K/V 显存。布局计算可在 CPU 上运行；设备端写入 kernel 和请求调度仍属后续阶段。
 
 ## v2 Slot Mapping
 
 控制面按 batch 顺序生成 `slot_mapping[i] = physical_block_id × block_size + offset_in_block`。例如 `block_size=16`，A 的 token 34 映射到 P81 得到 **1298**，B 的 token 17 映射到 P32 得到 **513**，C 的 token 80 映射到 P138 得到 **2208**。GPU kernel 将来可直接消费这段数组；详见 [接口、边界和示例](docs/v2_slot_mapping.md)。
+
+## v2 Paged KV Storage
+
+一层 K/V 使用 `K[num_blocks][num_kv_heads][block_size][head_size]` 与同形状的 V，K 区和 V 区在同一次 GPU 分配中连续存放。`PagedKVStorage` 复用 v1 `GpuMemoryPool` 的显存与地址接口，使用 v2 页池的物理编号；`slot_mapping` 可换算成 K/V 的真实设备地址。CPU 布局测试与真实 GPU 读回测试见 [布局、接口和复现](docs/v2_paged_kv_storage.md)。
 
 ## v2 碎片化测试
 
@@ -25,7 +29,7 @@ cmake --build build -j 2
 ctest --test-dir build -V -R '^kvflux_fragmentation_tests$'
 ```
 
-这个用例验证 v2 的物理页**元数据池**、请求和 Block Table；它在 CPU 上运行。v2 映射尚未接入真实 GPU KV 数据存储。
+这个碎片化用例验证 v2 的物理页**元数据池**、请求和 Block Table；它在 CPU 上运行。真实 GPU K/V 存储另由 [Paged KV Storage 测试](docs/v2_paged_kv_storage.md)验证。
 
 v1.0–v1.2 已在 v0 管理器上接入真实 GPU 显存池、统一 KV 布局和整块 Host ↔ GPU 读写。v1.3–v1.5 增加 pinned staging buffer、异步批量传输、compute/transfer streams 和真实性能基准。v1.6–v1.8 增加稳定逻辑块身份、GPU/CPU 分层、内存压力下的 LRU 搬迁，以及 next-N 预取。v1.9–v1.10 补齐 runtime metrics 和 A/B/C 完整实验，**v1 在单 GPU 内存运行时范围内完成**。尚未接入模型计算或 attention；不启用 CUDA 时，普通 CPU 仍可运行 v0 和容量估算。
 
@@ -153,7 +157,7 @@ int main() {
 
 ## 阅读路线
 
-v2 从 [物理页池说明](docs/v2_physical_block_pool.md)、[Block Table 说明](docs/v2_block_table.md)、[SequenceState 说明](docs/v2_sequence_state.md)、[动态增长说明](docs/v2_dynamic_sequence_growth.md) 和 [Slot Mapping 说明](docs/v2_slot_mapping.md) 开始，再看对应的 [物理页池接口](include/kvflux/physical_block_pool.h)、[Block Table 接口](include/kvflux/v2/block_table.h)、[请求接口](include/kvflux/v2/sequence_state.h)、[Slot Mapping 接口](include/kvflux/v2/slot_mapping.h) 和示例。
+v2 从 [物理页池说明](docs/v2_physical_block_pool.md)、[Block Table 说明](docs/v2_block_table.md)、[SequenceState 说明](docs/v2_sequence_state.md)、[动态增长说明](docs/v2_dynamic_sequence_growth.md)、[Slot Mapping 说明](docs/v2_slot_mapping.md) 和 [Paged KV Storage 说明](docs/v2_paged_kv_storage.md) 开始，再看对应的 [物理页池接口](include/kvflux/physical_block_pool.h)、[Block Table 接口](include/kvflux/v2/block_table.h)、[请求接口](include/kvflux/v2/sequence_state.h)、[Slot Mapping 接口](include/kvflux/v2/slot_mapping.h)、[存储接口](include/kvflux/v2/paged_kv_storage.h) 和示例。
 
 1. [项目主线](docs/project_mainline.md)：请求生命周期与后续版本路线。
 2. [设计与接口说明](docs/design.md)：状态机、数据结构、所有权、错误处理与复杂度。

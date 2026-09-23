@@ -7,7 +7,7 @@
 namespace kvflux {
 
 // GPU KV 缓存中的物理页编号。它是下标，不是 CUDA 指针，也不代表所有权。
-// 将来 PagedKVStorage 负责把这个编号转换成 K/V 的设备地址。
+// PagedKVStorage 使用这个编号定位 K/V 的设备页地址。
 using PhysicalBlockID = std::size_t;
 
 // 复用 v0 的 BlockHandle：id 指向物理页，generation 区分同一页的前后两次分配。

@@ -9,7 +9,7 @@ SequenceState + token_position
     → slot = physical_block * block_size + token_position % block_size
 ```
 
-`slot` 是**token 槽位编号**，不是 CUDA 指针或字节偏移。实际 K/V 地址仍需由后续的 GPU KV 存储布局计算。
+`slot` 是**token 槽位编号**，不是 CUDA 指针或字节偏移。实际 K/V 地址由 [Paged KV Storage](v2_paged_kv_storage.md) 的页布局计算。
 
 ## Batch 接口
 
@@ -36,4 +36,4 @@ ctest --test-dir build --output-on-failure
 ./build/kvflux_slot_mapping_demo
 ```
 
-当前模块在 CPU 控制面生成数组；设备上传、真实 K/V 写入 kernel 和执行期页生命周期管理尚未接入。
+当前模块在 CPU 控制面生成数组；[Paged KV Storage](v2_paged_kv_storage.md) 已能将 slot 换算为真实 GPU 地址。设备上传、K/V 写入 kernel 和执行期页生命周期管理尚未接入。

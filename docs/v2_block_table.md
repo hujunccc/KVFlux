@@ -36,7 +36,7 @@ b.append_shared(a, 0);         // b[0] 与 a[0] 指向同一物理页
 auto physical = b[0];          // 0；读取编号不会增加引用
 ```
 
-表只管理整块映射；token 数和尾块占用由 [SequenceState](v2_sequence_state.md) 管理。按 token 访问时，可用 `logical_block = token_index / block_size`，`offset = token_index % block_size`，再以 `physical_id(logical_block)` 定位物理页。实际 GPU 地址换算属于后续的 `PagedKVStorage`。
+表只管理整块映射；token 数和尾块占用由 [SequenceState](v2_sequence_state.md) 管理。按 token 访问时，可用 `logical_block = token_index / block_size`，`offset = token_index % block_size`，再以 `physical_id(logical_block)` 定位物理页。实际 GPU 地址由 [Paged KV Storage](v2_paged_kv_storage.md) 换算。
 
 ## 运行
 
