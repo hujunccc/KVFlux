@@ -62,7 +62,9 @@ Next-N 预取在计算期间提前搬入后续块，满池时先异步搬出、�
 
 v1.9–v1.10 已完成自有 metrics 和 A/B/C 实验；五个 Epic 与六项验收见 [v1 完成报告](v1_completion.md)。最终边界为单 GPU、GPU/CPU 两层内存运行时；未加入 PagedAttention、forward、continuous batching、分布式、RDMA、NVMe、多 GPU、框架集成、KV 压缩或量化。
 
-## 后续里程碑（尚未实现）
+## v2 进展与后续里程碑
+
+v2 Milestone 1 的 [Physical Block Pool](v2_physical_block_pool.md) 已实现：独立的物理编号元数据池复用 v0 分配器，支持分配、引用、归还和编号复用。下表中的请求追加等功能尚未实现。
 
 | 阶段 | 目标 | 验收重点 |
 | --- | --- | --- |

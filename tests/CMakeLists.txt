@@ -2,6 +2,10 @@ add_executable(kvflux_tests block_manager_test.cpp)
 target_link_libraries(kvflux_tests PRIVATE KVFlux::kvflux)
 add_test(NAME kvflux_tests COMMAND kvflux_tests)
 
+add_executable(kvflux_physical_pool_tests physical_block_pool_test.cpp)
+target_link_libraries(kvflux_physical_pool_tests PRIVATE KVFlux::kvflux)
+add_test(NAME kvflux_physical_pool_tests COMMAND kvflux_physical_pool_tests)
+
 add_executable(kvflux_layout_tests kv_layout_test.cpp)
 target_link_libraries(kvflux_layout_tests PRIVATE KVFlux::kvflux)
 add_test(NAME kvflux_layout_tests COMMAND kvflux_layout_tests)
