@@ -18,6 +18,10 @@ add_executable(kvflux_fragmentation_tests fragmentation_test.cpp)
 target_link_libraries(kvflux_fragmentation_tests PRIVATE KVFlux::kvflux)
 add_test(NAME kvflux_fragmentation_tests COMMAND kvflux_fragmentation_tests)
 
+add_executable(kvflux_slot_mapping_tests slot_mapping_test.cpp)
+target_link_libraries(kvflux_slot_mapping_tests PRIVATE KVFlux::kvflux)
+add_test(NAME kvflux_slot_mapping_tests COMMAND kvflux_slot_mapping_tests)
+
 add_executable(kvflux_layout_tests kv_layout_test.cpp)
 target_link_libraries(kvflux_layout_tests PRIVATE KVFlux::kvflux)
 add_test(NAME kvflux_layout_tests COMMAND kvflux_layout_tests)

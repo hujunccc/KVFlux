@@ -38,6 +38,10 @@ public:
     }
     std::size_t size() const noexcept { return blocks_.size(); }
     bool empty() const noexcept { return blocks_.empty(); }
+    // 同一 batch 的 slot 编号只有在共享同一个物理页池时才可合并。
+    bool shares_pool_with(const BlockTable& other) const noexcept {
+        return pool_ && pool_ == other.pool_;
+    }
 
     // 删除表尾映射并归还它持有的引用；不能在 GPU 仍使用该页时调用。
     void pop_back();

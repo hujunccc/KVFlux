@@ -64,7 +64,7 @@ v1.9–v1.10 已完成自有 metrics 和 A/B/C 实验；五个 Epic 与六项验
 
 ## v2 进展与后续里程碑
 
-v2 Milestone 1 的 [Physical Block Pool](v2_physical_block_pool.md) 已实现：独立的物理编号元数据池复用 v0 分配器，支持分配、引用、归还和编号复用。Milestone 2 的 [Block Table](v2_block_table.md) 已实现：表的下标就是逻辑块编号，表项映射到物理编号，并持有物理块引用。Milestone 3 的 [SequenceState](v2_sequence_state.md) 已实现：每个请求持有逻辑块表、token 数和尾块占用数。Milestone 4 的 [Dynamic Sequence Growth](v2_dynamic_sequence_growth.md) 已实现：decode 追加一个 token 时只在跨块边界申请新页，物理页无需连续。共享尾块的写时复制和真实数据写入尚未实现。
+v2 Milestone 1 的 [Physical Block Pool](v2_physical_block_pool.md) 已实现：独立的物理编号元数据池复用 v0 分配器，支持分配、引用、归还和编号复用。Milestone 2 的 [Block Table](v2_block_table.md) 已实现：表的下标就是逻辑块编号，表项映射到物理编号，并持有物理块引用。Milestone 3 的 [SequenceState](v2_sequence_state.md) 已实现：每个请求持有逻辑块表、token 数和尾块占用数。Milestone 4 的 [Dynamic Sequence Growth](v2_dynamic_sequence_growth.md) 已实现：decode 追加一个 token 时只在跨块边界申请新页，物理页无需连续。Milestone 5 的 [Slot Mapping](v2_slot_mapping.md) 已实现：控制面按 batch 顺序生成可供后续 GPU 消费的物理槽位数组。共享尾块的写时复制和真实数据写入尚未实现。
 
 | 阶段 | 目标 | 验收重点 |
 | --- | --- | --- |
