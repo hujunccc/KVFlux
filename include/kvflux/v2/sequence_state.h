@@ -36,6 +36,9 @@ public:
     // 为新增 token 预留逻辑位置和物理页，不写入实际 K/V 内容。
     // 任何分配失败都会归还本次新页，请求状态保持原样。
     void append_tokens(std::size_t count);
+    // decode 一步：追加一个 token，并返回它的物理页和块内偏移。
+    // 尾块未满时复用该页；跨过块边界时才申请新页。
+    TokenLocation append_token();
 
     // 查询本请求的逻辑块和 token 对应的物理页；越界抛 std::out_of_range。
     PhysicalBlockID physical_block_id(std::size_t logical_block) const;

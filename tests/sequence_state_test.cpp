@@ -61,6 +61,41 @@ void request_1001_has_virtual_blocks() {
     CHECK(pool.available() == 97); // 请求仍拥有 7、33、91。
 }
 
+void decode_grows_only_at_block_boundary() {
+    PhysicalBlockPool pool(100, 16);
+    std::vector<PhysicalBlockHandle> occupied;
+    auto occupy_until = [&](std::size_t count) {
+        while (occupied.size() < count) occupied.push_back(pool.allocate());
+    };
+
+    {
+        occupy_until(37);
+        SequenceState request(1001, pool);
+        request.append_tokens(15);
+        CHECK(request.num_tokens() == 15 && request.num_allocated_blocks() == 1);
+        CHECK(request.physical_block_id(0) == 37);
+        const auto available_before_decode = pool.available();
+
+        const auto sixteenth = request.append_token();
+        CHECK(sixteenth.physical_block == 37 && sixteenth.offset_in_block == 15);
+        CHECK(request.num_tokens() == 16 && request.last_block_num_tokens() == 16);
+        CHECK(request.num_allocated_blocks() == 1 && pool.available() == available_before_decode);
+
+        occupy_until(90);
+        const auto available_before_new_page = pool.available();
+        const auto seventeenth = request.append_token();
+        CHECK(seventeenth.physical_block == 91 && seventeenth.offset_in_block == 0);
+        CHECK(request.num_tokens() == 17 && request.last_block_num_tokens() == 1);
+        CHECK(request.num_allocated_blocks() == 2);
+        CHECK(request.block_table()[0] == 37 && request.block_table()[1] == 91);
+        CHECK(pool.available() + 1 == available_before_new_page);
+        CHECK(request.token_location(15).physical_block == 37);
+        CHECK(request.token_location(16).physical_block == 91);
+    }
+    for (auto handle : occupied) pool.free(handle);
+    CHECK(pool.available() == pool.capacity());
+}
+
 void tail_growth_and_failure_rollback() {
     PhysicalBlockPool pool(2, 16);
     SequenceState request(42, pool);
@@ -80,9 +115,14 @@ void tail_growth_and_failure_rollback() {
     });
     CHECK(request.num_tokens() == 16 && pool.available() == 1);
 
-    request.append_tokens(1);
+    const auto seventeenth = request.append_token();
     CHECK(request.num_tokens() == 17 && request.num_allocated_blocks() == 2);
+    CHECK(seventeenth.physical_block == 1 && seventeenth.offset_in_block == 0);
     CHECK(request.last_block_num_tokens() == 1 && pool.available() == 0);
+    request.append_tokens(15);
+    CHECK(request.num_tokens() == 32 && request.last_block_num_tokens() == 16);
+    throws<kvflux::CapacityError>([&] { request.append_token(); });
+    CHECK(request.num_tokens() == 32 && request.num_allocated_blocks() == 2);
 }
 
 void move_transfers_request_ownership() {
@@ -105,6 +145,7 @@ void move_transfers_request_ownership() {
 int main() {
     try {
         request_1001_has_virtual_blocks();
+        decode_grows_only_at_block_boundary();
         tail_growth_and_failure_rollback();
         move_transfers_request_ownership();
         std::cout << "v2 sequence state: virtual mapping and lifecycle checks passed\n";

@@ -46,6 +46,12 @@ void SequenceState::append_tokens(std::size_t count) {
     num_tokens_ = next_tokens;
 }
 
+TokenLocation SequenceState::append_token() {
+    const auto token_index = num_tokens_;
+    append_tokens(1);
+    return token_location(token_index);
+}
+
 PhysicalBlockID SequenceState::physical_block_id(std::size_t logical_block) const {
     return block_table_.physical_id(logical_block);
 }
