@@ -64,7 +64,7 @@ v1.9–v1.10 已完成自有 metrics 和 A/B/C 实验；五个 Epic 与六项验
 
 ## v2 进展与后续里程碑
 
-v2 Milestone 1 的 [Physical Block Pool](v2_physical_block_pool.md) 已实现：独立的物理编号元数据池复用 v0 分配器，支持分配、引用、归还和编号复用。Milestone 2 的 [Block Table](v2_block_table.md) 已实现：表的下标就是逻辑块编号，表项映射到物理编号，并持有物理块引用。Milestone 3 的 [SequenceState](v2_sequence_state.md) 已实现：每个请求持有逻辑块表、token 数和尾块占用数。Milestone 4 的 [Dynamic Sequence Growth](v2_dynamic_sequence_growth.md) 已实现：decode 追加一个 token 时只在跨块边界申请新页，物理页无需连续。Milestone 5 的 [Slot Mapping](v2_slot_mapping.md) 已实现：控制面按 batch 顺序生成物理槽位数组。Milestone 6 的 [Paged KV Storage](v2_paged_kv_storage.md) 已实现：K/V 分离的真实 GPU 页布局与地址换算。Milestone 7 的 [Paged KV Write](v2_paged_kv_write.md) 已实现：CUDA kernel 按 slot 写入 batch 的新 K/V。Milestone 8 的 [Paged KV Read](v2_paged_kv_read.md) 已实现：CUDA kernel 按请求 Block Table 逐页读取 K/V。共享尾块的写时复制、attention kernel 和调度仍未实现。
+v2 Milestone 1 的 [Physical Block Pool](v2_physical_block_pool.md) 已实现：独立的物理编号元数据池复用 v0 分配器，支持分配、引用、归还和编号复用。Milestone 2 的 [Block Table](v2_block_table.md) 已实现：表的下标就是逻辑块编号，表项映射到物理编号，并持有物理块引用。Milestone 3 的 [SequenceState](v2_sequence_state.md) 已实现：每个请求持有逻辑块表、token 数和尾块占用数。Milestone 4 的 [Dynamic Sequence Growth](v2_dynamic_sequence_growth.md) 已实现：decode 追加一个 token 时只在跨块边界申请新页，物理页无需连续。Milestone 5 的 [Slot Mapping](v2_slot_mapping.md) 已实现：控制面按 batch 顺序生成物理槽位数组。Milestone 6 的 [Paged KV Storage](v2_paged_kv_storage.md) 已实现：K/V 分离的真实 GPU 页布局与地址换算。Milestone 7 的 [Paged KV Write](v2_paged_kv_write.md) 已实现：CUDA kernel 按 slot 写入 batch 的新 K/V。Milestone 8 的 [Paged KV Read](v2_paged_kv_read.md) 已实现：CUDA kernel 按请求 Block Table 逐页读取 K/V。Milestone 9 的 [Reference Attention](v2_reference_attention.md) 已实现：连续 FP32 Q/K/V 的 CPU 因果注意力正确性基准。共享尾块的写时复制、paged attention kernel 和调度仍未实现。
 
 | 阶段 | 目标 | 验收重点 |
 | --- | --- | --- |

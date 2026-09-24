@@ -1,8 +1,8 @@
-# KVFlux：v1 分层 KV Cache 与 v2 Paged KV Read
+# KVFlux：v1 分层 KV Cache 与 v2 Reference Attention
 
 KVFlux 是学习和实现 LLM 推理 KV cache 基础设施的独立项目。v0 用无第三方依赖的 C++17 实现 block 管理，主线是：**请求 token → 逻辑块 → 前缀查找 → 物理块分配/复用 → 引用释放 → LRU 回收**。
 
-v2 已开始实施：[Milestone 1 Physical Block Pool](docs/v2_physical_block_pool.md) 将 v0 的分配器用于 GPU KV 物理页编号；[Milestone 2 Block Table](docs/v2_block_table.md) 用 vector 下标表示逻辑块，并映射到可共享的物理编号；[Milestone 3 SequenceState](docs/v2_sequence_state.md) 为每个请求记录 token 数和独立的逻辑块表；[Milestone 4 Dynamic Sequence Growth](docs/v2_dynamic_sequence_growth.md) 在 decode 跨块时才申请新物理页；[Milestone 5 Slot Mapping](docs/v2_slot_mapping.md) 把 batch token 位置转成连续的物理槽位编号数组；[Milestone 6 Paged KV Storage](docs/v2_paged_kv_storage.md) 把编号接到真实 GPU K/V 显存；[Milestone 7 Paged KV Write](docs/v2_paged_kv_write.md) 用 CUDA kernel 写入 batch 的新 K/V；[Milestone 8 Paged KV Read](docs/v2_paged_kv_read.md) 按请求的 Block Table 逐页读取 K/V。请求调度和 attention kernel 仍属后续阶段。
+v2 已开始实施：[Milestone 1 Physical Block Pool](docs/v2_physical_block_pool.md) 将 v0 的分配器用于 GPU KV 物理页编号；[Milestone 2 Block Table](docs/v2_block_table.md) 用 vector 下标表示逻辑块，并映射到可共享的物理编号；[Milestone 3 SequenceState](docs/v2_sequence_state.md) 为每个请求记录 token 数和独立的逻辑块表；[Milestone 4 Dynamic Sequence Growth](docs/v2_dynamic_sequence_growth.md) 在 decode 跨块时才申请新物理页；[Milestone 5 Slot Mapping](docs/v2_slot_mapping.md) 把 batch token 位置转成连续的物理槽位编号数组；[Milestone 6 Paged KV Storage](docs/v2_paged_kv_storage.md) 把编号接到真实 GPU K/V 显存；[Milestone 7 Paged KV Write](docs/v2_paged_kv_write.md) 用 CUDA kernel 写入 batch 的新 K/V；[Milestone 8 Paged KV Read](docs/v2_paged_kv_read.md) 按请求的 Block Table 逐页读取 K/V；[Milestone 9 Reference Attention](docs/v2_reference_attention.md) 提供连续 K/V 的 CPU 正确性基准。请求调度和 paged attention kernel 仍属后续阶段。
 
 ## v2 Slot Mapping
 
@@ -19,6 +19,10 @@ v2 已开始实施：[Milestone 1 Physical Block Pool](docs/v2_physical_block_po
 ## v2 Paged KV Read
 
 40 个 token、`block_size=16`、`BlockTable=[27, 3, 91]` 时，读取 kernel 将逻辑块 0、1、2 分别映射到 P27、P3、P91；只读取尾页的 8 个有效 token。输出是按请求 token 顺序排列的设备端 K/V，见 [接口、测试和示例](docs/v2_paged_kv_read.md)。
+
+## v2 Reference Attention
+
+连续 FP32 Q/K/V 在 CPU 上按 `QKᵀ → scale → causal mask → softmax → V` 得到基准输出。支持整段 prefill、末尾 Q 的 decode 和多个 Q 头共享一个 KV 头；后续 PagedAttention 的输出可逐元素计算 `max_error` 并与容差比较，见 [接口和测试](docs/v2_reference_attention.md)。
 
 ## v2 碎片化测试
 
@@ -165,7 +169,7 @@ int main() {
 
 ## 阅读路线
 
-v2 从 [物理页池说明](docs/v2_physical_block_pool.md)、[Block Table 说明](docs/v2_block_table.md)、[SequenceState 说明](docs/v2_sequence_state.md)、[动态增长说明](docs/v2_dynamic_sequence_growth.md)、[Slot Mapping 说明](docs/v2_slot_mapping.md)、[Paged KV Storage 说明](docs/v2_paged_kv_storage.md)、[Paged KV Write 说明](docs/v2_paged_kv_write.md) 和 [Paged KV Read 说明](docs/v2_paged_kv_read.md) 开始，再看对应的 [物理页池接口](include/kvflux/physical_block_pool.h)、[Block Table 接口](include/kvflux/v2/block_table.h)、[请求接口](include/kvflux/v2/sequence_state.h)、[Slot Mapping 接口](include/kvflux/v2/slot_mapping.h)、[存储接口](include/kvflux/v2/paged_kv_storage.h)、[写入接口](include/kvflux/v2/paged_kv_write.h)、[读取接口](include/kvflux/v2/paged_kv_read.h) 和示例。
+v2 从 [物理页池说明](docs/v2_physical_block_pool.md)、[Block Table 说明](docs/v2_block_table.md)、[SequenceState 说明](docs/v2_sequence_state.md)、[动态增长说明](docs/v2_dynamic_sequence_growth.md)、[Slot Mapping 说明](docs/v2_slot_mapping.md)、[Paged KV Storage 说明](docs/v2_paged_kv_storage.md)、[Paged KV Write 说明](docs/v2_paged_kv_write.md)、[Paged KV Read 说明](docs/v2_paged_kv_read.md) 和 [Reference Attention 说明](docs/v2_reference_attention.md) 开始，再看对应的 [物理页池接口](include/kvflux/physical_block_pool.h)、[Block Table 接口](include/kvflux/v2/block_table.h)、[请求接口](include/kvflux/v2/sequence_state.h)、[Slot Mapping 接口](include/kvflux/v2/slot_mapping.h)、[存储接口](include/kvflux/v2/paged_kv_storage.h)、[写入接口](include/kvflux/v2/paged_kv_write.h)、[读取接口](include/kvflux/v2/paged_kv_read.h)、[Reference Attention 接口](include/kvflux/v2/reference_attention.h) 和示例。
 
 1. [项目主线](docs/project_mainline.md)：请求生命周期与后续版本路线。
 2. [设计与接口说明](docs/design.md)：状态机、数据结构、所有权、错误处理与复杂度。

@@ -30,6 +30,10 @@ add_executable(kvflux_paged_kv_read_table_tests paged_kv_read_table_test.cpp)
 target_link_libraries(kvflux_paged_kv_read_table_tests PRIVATE KVFlux::kvflux)
 add_test(NAME kvflux_paged_kv_read_table_tests COMMAND kvflux_paged_kv_read_table_tests)
 
+add_executable(kvflux_reference_attention_tests reference_attention_test.cpp)
+target_link_libraries(kvflux_reference_attention_tests PRIVATE KVFlux::kvflux)
+add_test(NAME kvflux_reference_attention_tests COMMAND kvflux_reference_attention_tests)
+
 add_executable(kvflux_layout_tests kv_layout_test.cpp)
 target_link_libraries(kvflux_layout_tests PRIVATE KVFlux::kvflux)
 add_test(NAME kvflux_layout_tests COMMAND kvflux_layout_tests)
