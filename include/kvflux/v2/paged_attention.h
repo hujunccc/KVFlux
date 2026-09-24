@@ -3,6 +3,7 @@
 #include "kvflux/v2/paged_kv_storage.h"
 
 #include <cstddef>
+#include <vector>
 
 namespace kvflux::v2 {
 
@@ -19,5 +20,16 @@ namespace kvflux::v2 {
 void paged_attention(const PagedKVStorage& storage, const SequenceState& sequence,
                      const float* query_device, float* output_device,
                      std::size_t query_tokens, std::size_t query_heads);
+
+// batch decode：每个请求恰有一个末尾 Q，Q/O 均为
+// [num_sequences][query_heads][head_size] 的设备端 FP32 连续数组。
+// 请求顺序就是 batch 行号；各请求长度可不同，但均须非空且使用 storage 的页池。
+// 内部上传行主序 [num_sequences][max_blocks_per_sequence] block table 和
+// sequence_lengths，然后由 GPU 用 (request, logical_block) 查物理页。
+// 空 batch 不访问指针。其他指针、同步及生命周期约束同 paged_attention。
+void paged_attention_batch(const PagedKVStorage& storage,
+                           const std::vector<const SequenceState*>& sequences,
+                           const float* query_device, float* output_device,
+                           std::size_t query_heads);
 
 } // namespace kvflux::v2

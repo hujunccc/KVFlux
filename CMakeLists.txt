@@ -12,7 +12,8 @@ option(KVFLUX_BUILD_EXAMPLES "Build KVFlux examples" ON)
 option(KVFLUX_ENABLE_CUDA "Build the real CUDA GPU memory pool" OFF)
 
 add_library(kvflux src/block_manager.cpp src/physical_block_pool.cpp
-                   src/v2/block_table.cpp src/v2/sequence_state.cpp src/v2/slot_mapping.cpp
+                   src/v2/block_table.cpp src/v2/batch_block_table.cpp
+                   src/v2/sequence_state.cpp src/v2/slot_mapping.cpp
                    src/v2/paged_kv_layout.cpp src/v2/paged_kv_read_table.cpp
                    src/v2/reference_attention.cpp
                    src/kv_layout.cpp src/metrics.cpp)

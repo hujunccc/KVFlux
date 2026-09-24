@@ -1,5 +1,6 @@
 #include "kvflux/v2/paged_attention.h"
 
+#include "kvflux/v2/batch_block_table.h"
 #include "kvflux/v2/paged_kv_read.h"
 
 #include <cuda_bf16.h>
@@ -40,17 +41,17 @@ private:
     int previous_ = 0;
 };
 
-class DeviceBlocks {
+template<class T> class DeviceArray {
 public:
-    explicit DeviceBlocks(std::size_t bytes) {
-        cuda_check(cudaMalloc(&data_, bytes), "cudaMalloc attention block table");
+    explicit DeviceArray(std::size_t bytes) {
+        cuda_check(cudaMalloc(&data_, bytes), "cudaMalloc attention metadata");
     }
-    ~DeviceBlocks() noexcept { (void)cudaFree(data_); }
-    DeviceBlocks(const DeviceBlocks&) = delete;
-    DeviceBlocks& operator=(const DeviceBlocks&) = delete;
-    PhysicalBlockID* data() noexcept { return data_; }
+    ~DeviceArray() noexcept { (void)cudaFree(data_); }
+    DeviceArray(const DeviceArray&) = delete;
+    DeviceArray& operator=(const DeviceArray&) = delete;
+    T* data() noexcept { return data_; }
 private:
-    PhysicalBlockID* data_ = nullptr;
+    T* data_ = nullptr;
 };
 
 void validate_device_pointer(const void* pointer, int device, const char* name) {
@@ -70,6 +71,41 @@ bool overlaps(const void* a, std::size_t a_bytes, const void* b, std::size_t b_b
 }
 
 template<class Element>
+__device__ float attention_element(const float* query, const Element* key_cache,
+                                   const Element* value_cache, const PhysicalBlockID* blocks,
+                                   std::size_t query_base, std::size_t dimension,
+                                   std::size_t kv_head, std::size_t kv_heads,
+                                   std::size_t head_size, std::size_t block_size,
+                                   std::size_t last_visible, double scale) {
+    // 一个线程负责一个输出维度。逐 token 查页，重复计算 QK 点积以保持
+    // 代码简单；整个 kernel 从不生成连续 K/V 中间缓冲。
+    double maximum = -INFINITY;
+    double denominator = 0.0;
+    double numerator = 0.0;
+    for (std::size_t token = 0; token <= last_visible; ++token) {
+        const auto physical_block = blocks[token / block_size];
+        const auto cache_base = ((physical_block * kv_heads + kv_head) * block_size +
+                                 token % block_size) * head_size;
+        double dot = 0.0;
+        for (std::size_t dim = 0; dim < head_size; ++dim) {
+            dot += static_cast<double>(query[query_base + dim]) *
+                   static_cast<float>(key_cache[cache_base + dim]);
+        }
+        const double score = dot * scale;
+
+        // 在线 softmax：当新 score 更大时，将旧分母和加权 V 重新缩放。
+        const double next_maximum = score > maximum ? score : maximum;
+        const double rescale = exp(maximum - next_maximum);
+        const double weight = exp(score - next_maximum);
+        denominator = denominator * rescale + weight;
+        numerator = numerator * rescale + weight *
+                    static_cast<float>(value_cache[cache_base + dimension]);
+        maximum = next_maximum;
+    }
+    return static_cast<float>(numerator / denominator);
+}
+
+template<class Element>
 __global__ void paged_attention_kernel(const float* query, const Element* key_cache,
                                        const Element* value_cache, const PhysicalBlockID* blocks,
                                        float* output, std::size_t total_elements,
@@ -84,36 +120,35 @@ __global__ void paged_attention_kernel(const float* query, const Element* key_ca
         const auto query_head = (index / head_size) % query_heads;
         const auto query_token = index / (query_heads * head_size);
         const auto kv_head = query_head / (query_heads / kv_heads);
-        const auto query_base = index - dimension;
         const auto last_visible = kv_tokens - query_tokens + query_token;
+        output[index] = attention_element(query, key_cache, value_cache, blocks,
+                                          index - dimension, dimension, kv_head, kv_heads,
+                                          head_size, block_size, last_visible, scale);
+    }
+}
 
-        // 一个线程负责一个输出维度。逐 token 查页，重复计算 QK 点积以保持
-        // 代码简单；整个 kernel 从不生成连续 K/V 中间缓冲。
-        double maximum = -INFINITY;
-        double denominator = 0.0;
-        double numerator = 0.0;
-        for (std::size_t token = 0; token <= last_visible; ++token) {
-            const auto physical_block = blocks[token / block_size];
-            const auto cache_base = ((physical_block * kv_heads + kv_head) * block_size +
-                                     token % block_size) * head_size;
-            double dot = 0.0;
-            for (std::size_t dim = 0; dim < head_size; ++dim) {
-                dot += static_cast<double>(query[query_base + dim]) *
-                       static_cast<float>(key_cache[cache_base + dim]);
-            }
-            const double score = dot * scale;
-
-            // 在线 softmax：当新 score 更大时，将旧分母和加权 V 重新缩放。
-            // 相当于先对所有可见 score 减去最大值，再做 softmax @ V。
-            const double next_maximum = score > maximum ? score : maximum;
-            const double rescale = exp(maximum - next_maximum);
-            const double weight = exp(score - next_maximum);
-            denominator = denominator * rescale + weight;
-            numerator = numerator * rescale + weight *
-                        static_cast<float>(value_cache[cache_base + dimension]);
-            maximum = next_maximum;
-        }
-        output[index] = static_cast<float>(numerator / denominator);
+template<class Element>
+__global__ void paged_attention_batch_kernel(
+    const float* query, const Element* key_cache, const Element* value_cache,
+    const PhysicalBlockID* blocks, const std::size_t* sequence_lengths,
+    float* output, std::size_t total_elements, std::size_t max_blocks_per_sequence,
+    std::size_t query_heads, std::size_t kv_heads, std::size_t head_size,
+    std::size_t block_size, double scale) {
+    const auto stride = static_cast<std::size_t>(blockDim.x) * gridDim.x;
+    const auto elements_per_request = query_heads * head_size;
+    for (auto index = static_cast<std::size_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+         index < total_elements; index += stride) {
+        const auto request = index / elements_per_request;
+        const auto dimension = index % head_size;
+        const auto query_head = (index / head_size) % query_heads;
+        const auto kv_head = query_head / (query_heads / kv_heads);
+        // 每行的最后一个 Q 对齐该请求的最后一个 KV token；行宽固定，
+        // sequence_lengths 限制遍历范围，因此 kernel 不会读取 padding。
+        const auto* row = blocks + request * max_blocks_per_sequence;
+        output[index] = attention_element(query, key_cache, value_cache, row,
+                                          index - dimension, dimension, kv_head, kv_heads,
+                                          head_size, block_size,
+                                          sequence_lengths[request] - 1, scale);
     }
 }
 
@@ -133,6 +168,24 @@ void launch_attention(const PagedKVStorage& storage, const PhysicalBlockID* bloc
         total_elements, query_tokens, kv_tokens, query_heads, layout.num_kv_heads(),
         layout.head_size(), layout.block_size(), scale);
     cuda_check(cudaGetLastError(), "paged attention kernel launch");
+}
+
+template<class Element>
+void launch_attention_batch(const PagedKVStorage& storage, const PhysicalBlockID* blocks,
+                            const std::size_t* sequence_lengths, const float* query,
+                            float* output, std::size_t total_elements,
+                            std::size_t max_blocks_per_sequence, std::size_t query_heads) {
+    constexpr std::size_t threads = 256;
+    const auto needed = total_elements / threads + (total_elements % threads != 0);
+    const auto grid = static_cast<unsigned>(std::min<std::size_t>(needed, 1024));
+    const auto& layout = storage.layout();
+    const double scale = 1.0 / std::sqrt(static_cast<double>(layout.head_size()));
+    paged_attention_batch_kernel<<<grid, static_cast<unsigned>(threads)>>>(
+        query, static_cast<const Element*>(storage.key_base()),
+        static_cast<const Element*>(storage.value_base()), blocks, sequence_lengths,
+        output, total_elements, max_blocks_per_sequence, query_heads,
+        layout.num_kv_heads(), layout.head_size(), layout.block_size(), scale);
+    cuda_check(cudaGetLastError(), "paged attention batch kernel launch");
 }
 
 } // namespace
@@ -170,7 +223,7 @@ void paged_attention(const PagedKVStorage& storage, const SequenceState& sequenc
         throw std::invalid_argument("Q and attention output must not overlap each other or KV cache");
     }
 
-    DeviceBlocks device_blocks(table_bytes);
+    DeviceArray<PhysicalBlockID> device_blocks(table_bytes);
     cuda_check(cudaMemcpyAsync(device_blocks.data(), host_blocks.data(), table_bytes,
                                cudaMemcpyHostToDevice), "upload attention block table");
     switch (layout.dtype()) {
@@ -190,6 +243,73 @@ void paged_attention(const PagedKVStorage& storage, const SequenceState& sequenc
         throw std::invalid_argument("unsupported paged attention dtype");
     }
     cuda_check(cudaStreamSynchronize(nullptr), "paged attention synchronize");
+}
+
+void paged_attention_batch(const PagedKVStorage& storage,
+                           const std::vector<const SequenceState*>& sequences,
+                           const float* query_device, float* output_device,
+                           std::size_t query_heads) {
+    const auto& layout = storage.layout();
+    if (query_heads == 0 || query_heads % layout.num_kv_heads() != 0) {
+        throw std::invalid_argument("invalid batch attention head count");
+    }
+    const auto host_table = build_batch_block_table(sequences);
+    for (std::size_t request = 0; request < sequences.size(); ++request) {
+        if (!storage.uses_pool(sequences[request]->block_table()) ||
+            sequences[request]->block_size() != layout.block_size() ||
+            host_table.sequence_lengths()[request] == 0) {
+            throw std::invalid_argument("invalid batch attention sequence");
+        }
+    }
+    for (auto block : host_table.block_table()) {
+        if (block != BatchBlockTable::invalid_block() && block >= layout.num_blocks()) {
+            throw std::out_of_range("batch attention block out of range");
+        }
+    }
+    const auto total_elements = checked_multiply(
+        checked_multiply(sequences.size(), query_heads), layout.head_size());
+    const auto tensor_bytes = checked_multiply(total_elements, sizeof(float));
+    if (sequences.empty()) return;
+    if (!query_device || !output_device) {
+        throw std::invalid_argument("Q and attention output device pointers are required");
+    }
+    const auto table_bytes = checked_multiply(host_table.block_table().size(), sizeof(PhysicalBlockID));
+    const auto lengths_bytes = checked_multiply(sequences.size(), sizeof(std::size_t));
+    DeviceGuard guard(storage.device());
+    validate_device_pointer(query_device, storage.device(), "Q");
+    validate_device_pointer(output_device, storage.device(), "attention output");
+    if (overlaps(query_device, tensor_bytes, output_device, tensor_bytes) ||
+        overlaps(query_device, tensor_bytes, storage.key_base(), layout.total_bytes()) ||
+        overlaps(output_device, tensor_bytes, storage.key_base(), layout.total_bytes())) {
+        throw std::invalid_argument("Q and attention output must not overlap each other or KV cache");
+    }
+
+    DeviceArray<PhysicalBlockID> device_blocks(table_bytes);
+    DeviceArray<std::size_t> device_lengths(lengths_bytes);
+    cuda_check(cudaMemcpyAsync(device_blocks.data(), host_table.block_table().data(), table_bytes,
+                               cudaMemcpyHostToDevice), "upload batch block table");
+    cuda_check(cudaMemcpyAsync(device_lengths.data(), host_table.sequence_lengths().data(),
+                               lengths_bytes, cudaMemcpyHostToDevice), "upload sequence lengths");
+    switch (layout.dtype()) {
+    case DType::Float16:
+        launch_attention_batch<__half>(storage, device_blocks.data(), device_lengths.data(),
+                                       query_device, output_device, total_elements,
+                                       host_table.max_blocks_per_sequence(), query_heads);
+        break;
+    case DType::BFloat16:
+        launch_attention_batch<__nv_bfloat16>(storage, device_blocks.data(), device_lengths.data(),
+                                              query_device, output_device, total_elements,
+                                              host_table.max_blocks_per_sequence(), query_heads);
+        break;
+    case DType::Float32:
+        launch_attention_batch<float>(storage, device_blocks.data(), device_lengths.data(),
+                                      query_device, output_device, total_elements,
+                                      host_table.max_blocks_per_sequence(), query_heads);
+        break;
+    default:
+        throw std::invalid_argument("unsupported batch attention dtype");
+    }
+    cuda_check(cudaStreamSynchronize(nullptr), "paged attention batch synchronize");
 }
 
 } // namespace kvflux::v2
