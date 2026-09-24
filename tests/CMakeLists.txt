@@ -18,6 +18,10 @@ add_executable(kvflux_sequence_state_tests sequence_state_test.cpp)
 target_link_libraries(kvflux_sequence_state_tests PRIVATE KVFlux::kvflux)
 add_test(NAME kvflux_sequence_state_tests COMMAND kvflux_sequence_state_tests)
 
+add_executable(kvflux_prefix_cache_tests prefix_cache_test.cpp)
+target_link_libraries(kvflux_prefix_cache_tests PRIVATE KVFlux::kvflux)
+add_test(NAME kvflux_prefix_cache_tests COMMAND kvflux_prefix_cache_tests)
+
 add_executable(kvflux_fragmentation_tests fragmentation_test.cpp)
 target_link_libraries(kvflux_fragmentation_tests PRIVATE KVFlux::kvflux)
 add_test(NAME kvflux_fragmentation_tests COMMAND kvflux_fragmentation_tests)

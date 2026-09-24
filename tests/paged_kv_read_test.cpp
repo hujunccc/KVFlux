@@ -1,5 +1,6 @@
 #include "kvflux/v2/paged_kv_read.h"
 #include "kvflux/v2/paged_kv_write.h"
+#include "kvflux/v2/prefix_cache.h"
 
 #include <cuda_runtime_api.h>
 
@@ -82,6 +83,29 @@ void check_paged_read(kvflux::DType dtype) {
         const auto sentinel = static_cast<Element>(sizeof(Element) == 2 ? 0xA5A5u : 0xA5A5A5A5u);
         CHECK(actual_keys[elements] == sentinel);
         CHECK(actual_values[elements] == sentinel);
+
+        // 真实 GPU 路径：A 写完并同步后发布两个完整页；B 命中同一前缀，
+        // 直接从共享物理页读 K/V，不再次调用 write_paged_kv。
+        kvflux::v2::PrefixCache cache(pool);
+        kvflux::Tokens prompt(tokens);
+        for (std::size_t i = 0; i < tokens; ++i) prompt[i] = static_cast<kvflux::Token>(i);
+        cache.publish_computed_block(request, 0, kvflux::Tokens(prompt.begin(), prompt.begin() + 16));
+        cache.publish_computed_block(request, 1, kvflux::Tokens(prompt.begin(), prompt.begin() + 32));
+        kvflux::v2::SequenceState shared(1004, pool);
+        prompt[32] = 999; // 尾块不同，只有前两个完整块允许共享。
+        CHECK(cache.attach_cached_prefix(shared, prompt) == 32);
+        CHECK(shared.physical_block_id(0) == request.physical_block_id(0));
+        CHECK(shared.physical_block_id(1) == request.physical_block_id(1));
+        CHECK(pool.ref_count(request.block_table().handle(0)) == 2);
+        kvflux::v2::read_paged_kv(storage, shared, key_output.data(), value_output.data());
+        CHECK(cudaMemcpy(actual_keys.data(), key_output.data(), 32 * heads * dimensions * sizeof(Element),
+                         cudaMemcpyDeviceToHost) == cudaSuccess);
+        CHECK(cudaMemcpy(actual_values.data(), value_output.data(), 32 * heads * dimensions * sizeof(Element),
+                         cudaMemcpyDeviceToHost) == cudaSuccess);
+        for (std::size_t i = 0; i < 32 * heads * dimensions; ++i) {
+            CHECK(actual_keys[i] == keys[i]);
+            CHECK(actual_values[i] == values[i]);
+        }
 
         throws<std::invalid_argument>([&] {
             kvflux::v2::read_paged_kv(storage, request, nullptr, value_output.data());

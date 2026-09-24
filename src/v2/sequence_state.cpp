@@ -52,8 +52,21 @@ TokenLocation SequenceState::append_token() {
     return token_location(token_index);
 }
 
+void SequenceState::append_cached_full_block(PhysicalBlockHandle handle) {
+    if (num_tokens_ % block_size_ != 0 ||
+        block_size_ > std::numeric_limits<std::size_t>::max() - num_tokens_) {
+        throw std::invalid_argument("cached block requires a complete preceding prefix");
+    }
+    block_table_.append_existing(handle); // 失败时 token 数和表均保持不变。
+    num_tokens_ += block_size_;
+}
+
 PhysicalBlockID SequenceState::physical_block_id(std::size_t logical_block) const {
     return block_table_.physical_id(logical_block);
+}
+
+PhysicalBlockHandle SequenceState::block_handle(std::size_t logical_block) const {
+    return block_table_.handle(logical_block);
 }
 
 TokenLocation SequenceState::token_location(std::size_t token_index) const {

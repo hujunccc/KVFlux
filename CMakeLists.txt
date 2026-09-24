@@ -13,7 +13,7 @@ option(KVFLUX_ENABLE_CUDA "Build the real CUDA GPU memory pool" OFF)
 
 add_library(kvflux src/block_manager.cpp src/physical_block_pool.cpp
                    src/v2/block_table.cpp src/v2/batch_block_table.cpp
-                   src/v2/sequence_state.cpp src/v2/slot_mapping.cpp
+                   src/v2/sequence_state.cpp src/v2/prefix_cache.cpp src/v2/slot_mapping.cpp
                    src/v2/paged_kv_layout.cpp src/v2/paged_kv_read_table.cpp
                    src/v2/reference_attention.cpp
                    src/kv_layout.cpp src/metrics.cpp)
@@ -50,6 +50,8 @@ if(KVFLUX_BUILD_EXAMPLES)
   target_link_libraries(kvflux_dynamic_growth_demo PRIVATE KVFlux::kvflux)
   add_executable(kvflux_slot_mapping_demo examples/slot_mapping.cpp)
   target_link_libraries(kvflux_slot_mapping_demo PRIVATE KVFlux::kvflux)
+  add_executable(kvflux_block_sharing_demo examples/block_sharing.cpp)
+  target_link_libraries(kvflux_block_sharing_demo PRIVATE KVFlux::kvflux)
   if(KVFLUX_ENABLE_CUDA)
     add_executable(kvflux_paged_kv_storage_demo examples/paged_kv_storage.cpp)
     target_link_libraries(kvflux_paged_kv_storage_demo PRIVATE KVFlux::kvflux)

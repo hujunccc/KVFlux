@@ -59,6 +59,12 @@ PhysicalBlockID BlockTable::physical_id(std::size_t logical_block) const {
     return pool_->id(handle);
 }
 
+PhysicalBlockHandle BlockTable::handle(std::size_t logical_block) const {
+    const auto result = blocks_.at(logical_block);
+    (void)pool_->id(result); // 校验 generation 和活跃引用。
+    return result;
+}
+
 void BlockTable::pop_back() {
     if (blocks_.empty()) throw std::out_of_range("block table is empty");
     pool_->free(blocks_.back());

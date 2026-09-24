@@ -47,7 +47,7 @@ ctest --test-dir build --output-on-failure
 
 ## 与 v0 / v1 的关系
 
-`PhysicalBlockPool` 内部直接复用 v0 `BlockManager` 的 free list、引用计数、容量错误和 generation 校验。这里不调用 `publish`，所以没有前缀缓存：引用归零后直接进入 free list，下一次分配可以复用编号。`retain(handle)` 增加一个引用，每次 `allocate` 或 `retain` 都要配对一次 `free`。池满且没有可回收页时，`allocate` 抛出 `CapacityError`。
+`PhysicalBlockPool` 内部直接复用 v0 `BlockManager` 的 free list、引用计数、容量错误和 generation 校验。Milestone 12 通过 [Block Sharing](v2_block_sharing.md) 接入 `publish` / `lookup`：已发布页引用归零后留在可淘汰的缓存队列中，未发布页直接进入 free list。`available()` 包含普通空闲页和零引用缓存页。`retain(handle)` 增加一个引用，每次 `allocate` 或 `retain` 都要配对一次 `free`。池满且没有可回收页时，`allocate` 抛出 `CapacityError`。
 
 v1 的 `GpuMemoryPool` 继续承担原有连续显存、同步读写和前缀缓存功能。v2 的物理页池独立管理编号和引用，让元数据与存储地址明确分开。`PagedKVStorage` 复用 v1 的一次性显存分配，并依据 v2 物理编号定位 K/V；物理页池自身无需知道 CUDA 地址。
 

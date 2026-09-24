@@ -8,6 +8,7 @@
 namespace kvflux::v2 {
 
 using RequestID = std::uint64_t;
+class PrefixCache;
 
 struct TokenLocation {
     PhysicalBlockID physical_block;
@@ -40,11 +41,16 @@ public:
     // 尾块未满时复用该页；跨过块边界时才申请新页。
     TokenLocation append_token();
 
+
     // 查询本请求的逻辑块和 token 对应的物理页；越界抛 std::out_of_range。
     PhysicalBlockID physical_block_id(std::size_t logical_block) const;
     TokenLocation token_location(std::size_t token_index) const;
 
 private:
+    friend class PrefixCache;
+    // 只允许 PrefixCache 调用：它先校验页池、完整前缀与已发布状态。
+    void append_cached_full_block(PhysicalBlockHandle handle);
+    PhysicalBlockHandle block_handle(std::size_t logical_block) const;
     RequestID request_id_;
     std::size_t num_tokens_ = 0;
     std::size_t block_size_;

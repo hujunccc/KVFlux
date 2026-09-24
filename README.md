@@ -4,6 +4,8 @@ KVFlux 是学习和实现 LLM 推理 KV cache 基础设施的独立项目。v0 �
 
 v2 已开始实施：[Milestone 1 Physical Block Pool](docs/v2_physical_block_pool.md) 将 v0 的分配器用于 GPU KV 物理页编号；[Milestone 2 Block Table](docs/v2_block_table.md) 用 vector 下标表示逻辑块，并映射到可共享的物理编号；[Milestone 3 SequenceState](docs/v2_sequence_state.md) 为每个请求记录 token 数和独立的逻辑块表；[Milestone 4 Dynamic Sequence Growth](docs/v2_dynamic_sequence_growth.md) 在 decode 跨块时才申请新物理页；[Milestone 5 Slot Mapping](docs/v2_slot_mapping.md) 把 batch token 位置转成连续的物理槽位编号数组；[Milestone 6 Paged KV Storage](docs/v2_paged_kv_storage.md) 把编号接到真实 GPU K/V 显存；[Milestone 7 Paged KV Write](docs/v2_paged_kv_write.md) 用 CUDA kernel 写入 batch 的新 K/V；[Milestone 8 Paged KV Read](docs/v2_paged_kv_read.md) 按请求的 Block Table 逐页读取 K/V；[Milestone 9 Reference Attention](docs/v2_reference_attention.md) 提供连续 K/V 的 CPU 正确性基准；[Milestone 10 Simplified PagedAttention](docs/v2_paged_attention.md) 直接从物理页计算注意力；[Milestone 11 Batch Block Table](docs/v2_batch_block_table.md) 用二维页表和 sequence lengths 驱动 batch decode。请求调度仍属后续阶段。
 
+[Milestone 12 Block Sharing](docs/v2_block_sharing.md) 已把完整前缀哈希、引用计数、缓存命中及零引用页淘汰接到 v2 请求和真实物理页。请求调度及共享尾块写时复制仍属后续阶段。
+
 ## v2 Slot Mapping
 
 控制面按 batch 顺序生成 `slot_mapping[i] = physical_block_id × block_size + offset_in_block`。例如 `block_size=16`，A 的 token 34 映射到 P81 得到 **1298**，B 的 token 17 映射到 P32 得到 **513**，C 的 token 80 映射到 P138 得到 **2208**。Paged KV Write kernel 已消费这段数组；详见 [接口、边界和示例](docs/v2_slot_mapping.md)。
@@ -174,6 +176,8 @@ int main() {
 ## 阅读路线
 
 v2 从 [物理页池说明](docs/v2_physical_block_pool.md)、[Block Table 说明](docs/v2_block_table.md)、[SequenceState 说明](docs/v2_sequence_state.md)、[动态增长说明](docs/v2_dynamic_sequence_growth.md)、[Slot Mapping 说明](docs/v2_slot_mapping.md)、[Paged KV Storage 说明](docs/v2_paged_kv_storage.md)、[Paged KV Write 说明](docs/v2_paged_kv_write.md)、[Paged KV Read 说明](docs/v2_paged_kv_read.md)、[Reference Attention 说明](docs/v2_reference_attention.md)、[PagedAttention 说明](docs/v2_paged_attention.md) 和 [Batch Block Table 说明](docs/v2_batch_block_table.md) 开始，再看对应的 [物理页池接口](include/kvflux/physical_block_pool.h)、[Block Table 接口](include/kvflux/v2/block_table.h)、[Batch Block Table 接口](include/kvflux/v2/batch_block_table.h)、[请求接口](include/kvflux/v2/sequence_state.h)、[Slot Mapping 接口](include/kvflux/v2/slot_mapping.h)、[存储接口](include/kvflux/v2/paged_kv_storage.h)、[写入接口](include/kvflux/v2/paged_kv_write.h)、[读取接口](include/kvflux/v2/paged_kv_read.h)、[Reference Attention 接口](include/kvflux/v2/reference_attention.h)、[PagedAttention 接口](include/kvflux/v2/paged_attention.h) 和示例。
+
+共享完整 KV 页的调用顺序见 [Block Sharing 说明](docs/v2_block_sharing.md) 与 [PrefixCache 接口](include/kvflux/v2/prefix_cache.h)。
 
 1. [项目主线](docs/project_mainline.md)：请求生命周期与后续版本路线。
 2. [设计与接口说明](docs/design.md)：状态机、数据结构、所有权、错误处理与复杂度。

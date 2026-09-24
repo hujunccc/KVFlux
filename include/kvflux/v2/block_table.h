@@ -32,6 +32,8 @@ public:
     // 查询只返回编号，不增加引用。表仍存活时可用于定位存储层的页。
     // logical_block 越界时抛 std::out_of_range。
     PhysicalBlockID physical_id(std::size_t logical_block) const;
+    // 借用句柄用于发布已写完的完整块；不增加引用，表必须仍持有该块。
+    PhysicalBlockHandle handle(std::size_t logical_block) const;
     // table[i] 与 physical_id(i) 等价：i 就是逻辑块编号。
     PhysicalBlockID operator[](std::size_t logical_block) const {
         return physical_id(logical_block);
