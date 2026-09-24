@@ -10,6 +10,20 @@ v2 已开始实施：[Milestone 1 Physical Block Pool](docs/v2_physical_block_po
 
 V2 的 15 项必备正确性检查、对应 CTest 用例及 CPU/GPU 运行命令见 [测试矩阵](docs/v2_test_matrix.md)。
 
+## v2：logical → physical → slot
+
+对一个请求中的 token `t`，先计算 `logical_block = t / block_size` 与
+`offset = t % block_size`；该请求自己的 `block_table[logical_block]` 给出
+`physical_block`，随后 `slot = physical_block × block_size + offset`。
+例如 `block_size=16`、请求 A 的 `block_table[2]=81` 时，token 34 对应
+逻辑块 2、块内偏移 2、物理块 P81，最终 slot 为 **1298**。CUDA 写入 kernel
+用这个 slot 定位 K/V；直接 paged attention 则按 `block_table` 逐 token
+读取物理页，无需先 gather 整段 KV。batch 场景把每个请求的页表组成二维表，
+再用 `sequence_lengths` 限定各行有效 token。
+
+V2 的可复现写入、gather、decode attention 与 batch decode 基准，以及
+CUPTI kernel/页表上传活动分析，见 [RTX 3060 V2 实测报告](benchmark/results/rtx3060-v2/report.md)。
+
 ## v2 Slot Mapping
 
 控制面按 batch 顺序生成 `slot_mapping[i] = physical_block_id × block_size + offset_in_block`。例如 `block_size=16`，A 的 token 34 映射到 P81 得到 **1298**，B 的 token 17 映射到 P32 得到 **513**，C 的 token 80 映射到 P138 得到 **2208**。Paged KV Write kernel 已消费这段数组；详见 [接口、边界和示例](docs/v2_slot_mapping.md)。

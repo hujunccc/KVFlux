@@ -1,0 +1,15 @@
+utc=2026-09-24T17:18:45Z
+gpu=NVIDIA GeForce RTX 3060 Laptop GPU
+compute_capability=8.6
+runtime=12040
+driver=13020
+compiler=13.4.0
+block_size=16
+kv_heads=2
+query_heads=4
+head_size=32
+dtype=FP32
+warmup_calls=5
+measured_calls=30
+metric=host wall time per synchronous public API call
+setup_and_correctness_check=excluded from timing
