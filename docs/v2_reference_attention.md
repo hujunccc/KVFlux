@@ -30,8 +30,8 @@ const float tolerance = 1e-5f;
 assert(max_error < tolerance);
 ```
 
-未来的 PagedAttention kernel 应直接按 Block Table 访问页中的 K/V，
-其输出拷回 CPU 后与此结果比较。当前 [Paged KV Read](v2_paged_kv_read.md)
+Milestone 10 的 [PagedAttention kernel](v2_paged_attention.md) 直接按 Block Table
+访问页中的 K/V，其输出拷回 CPU 后与此结果比较。[Paged KV Read](v2_paged_kv_read.md)
 可先把页中的 K/V 读成连续设备缓冲，再拷回并转换为 FP32，用于检查
 输入内容；它本身不执行 attention。此基准以正确性为目标，不做性能优化。
 
