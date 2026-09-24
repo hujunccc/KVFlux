@@ -4,9 +4,45 @@
 #include <iostream>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 #define CHECK(condition) do { if (!(condition)) throw std::runtime_error( \
     std::string("check failed at line ") + std::to_string(__LINE__) + ": " #condition); } while (false)
+
+void many_isolated_free_pages_support_growth() {
+    constexpr std::size_t capacity = 128, block_size = 4;
+    kvflux::PhysicalBlockPool pool(capacity, block_size);
+    std::vector<kvflux::PhysicalBlockHandle> holders;
+    holders.reserve(capacity);
+    for (std::size_t i = 0; i < capacity; ++i) holders.push_back(pool.allocate());
+
+    // 每个空闲页两侧都有活跃页：总空闲量为 64，最长连续空闲区只有 1。
+    // 反向释放使后续分配顺序为 P1、P3、...、P127。
+    for (std::size_t next = capacity; next > 0; next -= 2) pool.free(holders[next - 1]);
+    CHECK(pool.available() == capacity / 2);
+    {
+        kvflux::v2::SequenceState request(2001, pool);
+        request.append_tokens((capacity / 2) * block_size);
+        CHECK(request.num_allocated_blocks() == capacity / 2 && pool.available() == 0);
+        for (std::size_t logical = 0; logical < capacity / 2; ++logical) {
+            const auto physical = 2 * logical + 1;
+            CHECK(request.block_table()[logical] == physical);
+            for (std::size_t offset = 0; offset < block_size; ++offset) {
+                const auto slot = request.token_location(logical * block_size + offset);
+                CHECK(slot.physical_block == physical && slot.offset_in_block == offset);
+            }
+        }
+        // 真正耗尽时必须失败，且已有 64 个映射不能被破坏。
+        bool exhausted = false;
+        try { request.append_token(); }
+        catch (const kvflux::CapacityError&) { exhausted = true; }
+        CHECK(exhausted && request.num_tokens() == (capacity / 2) * block_size);
+        CHECK(request.block_table()[0] == 1 && request.block_table()[63] == 127);
+    }
+    CHECK(pool.available() == capacity / 2);
+    for (std::size_t id = 0; id < capacity; id += 2) pool.free(holders[id]);
+    CHECK(pool.available() == capacity);
+}
 
 int main() {
     try {
@@ -67,6 +103,8 @@ int main() {
         for (std::size_t id = 0; id < capacity; id += 2) pool.free(holders[id]);
         CHECK(pool.available() == capacity);
         std::cout << "Fragmentation test passed; all 8 pages returned\n";
+        many_isolated_free_pages_support_growth();
+        std::cout << "Fragmentation stress: 64 isolated pages allocated and released\n";
     } catch (const std::exception& e) {
         std::cerr << e.what() << '\n';
         return 1;

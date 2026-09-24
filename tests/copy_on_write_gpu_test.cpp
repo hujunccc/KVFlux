@@ -108,6 +108,20 @@ template<class Element> void check_gpu_copy(kvflux::DType dtype) {
         CHECK(actual_b_k[initial_k.size() + i] == b_k[i]);
         CHECK(actual_b_v[initial_v.size() + i] == b_v[i]);
     }
+    // B 在旧页的同一 offset 写入后，再读 A 的新页；两侧都要保持各自的值。
+    kvflux::v2::read_paged_kv(storage, a, a_read_k.data(), a_read_v.data());
+    CHECK(cudaMemcpy(actual_a_k.data(), a_read_k.data(), actual_a_k.size() * sizeof(Element),
+                     cudaMemcpyDeviceToHost) == cudaSuccess);
+    CHECK(cudaMemcpy(actual_a_v.data(), a_read_v.data(), actual_a_v.size() * sizeof(Element),
+                     cudaMemcpyDeviceToHost) == cudaSuccess);
+    for (std::size_t i = 0; i < initial_k.size(); ++i) {
+        CHECK(actual_a_k[i] == initial_k[i]);
+        CHECK(actual_a_v[i] == initial_v[i]);
+    }
+    for (std::size_t i = 0; i < elements_per_token; ++i) {
+        CHECK(actual_a_k[initial_k.size() + i] == a_k[i]);
+        CHECK(actual_a_v[initial_v.size() + i] == a_v[i]);
+    }
     CHECK(a.physical_block_id(0) != b.physical_block_id(0));
 }
 

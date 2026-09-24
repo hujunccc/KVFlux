@@ -8,6 +8,8 @@ v2 已开始实施：[Milestone 1 Physical Block Pool](docs/v2_physical_block_po
 
 [Milestone 14 Sequence 生命周期](docs/v2_sequence_lifecycle.md) 将单请求 prefill、KV 写入、decode、attention 和页释放串成可调用流程。批量请求调度仍属后续阶段。
 
+V2 的 15 项必备正确性检查、对应 CTest 用例及 CPU/GPU 运行命令见 [测试矩阵](docs/v2_test_matrix.md)。
+
 ## v2 Slot Mapping
 
 控制面按 batch 顺序生成 `slot_mapping[i] = physical_block_id × block_size + offset_in_block`。例如 `block_size=16`，A 的 token 34 映射到 P81 得到 **1298**，B 的 token 17 映射到 P32 得到 **513**，C 的 token 80 映射到 P138 得到 **2208**。Paged KV Write kernel 已消费这段数组；详见 [接口、边界和示例](docs/v2_slot_mapping.md)。
@@ -49,7 +51,7 @@ cmake --build build -j 2
 ctest --test-dir build -V -R '^kvflux_fragmentation_tests$'
 ```
 
-这个碎片化用例验证 v2 的物理页**元数据池**、请求和 Block Table；它在 CPU 上运行。真实 GPU K/V 存储另由 [Paged KV Storage 测试](docs/v2_paged_kv_storage.md)验证。
+同一测试还覆盖 128 页池、64 个互不相邻空闲页的压力场景，并检查耗尽时映射不变、请求结束后全部释放。它验证 v2 的物理页**元数据池**、请求和 Block Table；真实 GPU K/V 存储另由 [Paged KV Storage 测试](docs/v2_paged_kv_storage.md)验证。
 
 v1.0–v1.2 已在 v0 管理器上接入真实 GPU 显存池、统一 KV 布局和整块 Host ↔ GPU 读写。v1.3–v1.5 增加 pinned staging buffer、异步批量传输、compute/transfer streams 和真实性能基准。v1.6–v1.8 增加稳定逻辑块身份、GPU/CPU 分层、内存压力下的 LRU 搬迁，以及 next-N 预取。v1.9–v1.10 补齐 runtime metrics 和 A/B/C 完整实验，**v1 在单 GPU 内存运行时范围内完成**。尚未接入模型计算或 attention；不启用 CUDA 时，普通 CPU 仍可运行 v0 和容量估算。
 
