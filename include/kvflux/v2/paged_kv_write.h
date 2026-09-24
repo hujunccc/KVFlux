@@ -9,7 +9,8 @@ namespace kvflux::v2 {
 // 每次调用上传 slot_mapping、启动 CUDA kernel，并等待完成后返回。
 // 输入必须在默认 stream 上已就绪，或由调用方先同步产生输入的其他 stream。
 // 空 batch 不访问输入指针。拒绝空指针、越界或重复 slot、错误设备指针。
-// 调用方必须保持请求的物理页引用，且不能向仍被其他请求共享的页写入。
+// 调用方必须保持请求的物理页引用，且不能向仍被其他请求共享的页写入；
+// 共享 partial 尾页先通过 append_token_cow 取得私有页，再生成 slot_mapping。
 void write_paged_kv(PagedKVStorage& storage, const void* key_new_device,
                     const void* value_new_device, const SlotMapping& slot_mapping);
 

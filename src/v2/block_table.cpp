@@ -65,10 +65,33 @@ PhysicalBlockHandle BlockTable::handle(std::size_t logical_block) const {
     return result;
 }
 
+std::size_t BlockTable::ref_count(std::size_t logical_block) const {
+    return pool_->ref_count(blocks_.at(logical_block));
+}
+
+PhysicalBlockPool& BlockTable::pool() const {
+    if (!pool_) throw std::logic_error("moved-from block table has no pool");
+    return *pool_;
+}
+
 void BlockTable::pop_back() {
     if (blocks_.empty()) throw std::out_of_range("block table is empty");
     pool_->free(blocks_.back());
     blocks_.pop_back();
+}
+
+void BlockTable::replace_last_owned(PhysicalBlockHandle new_handle) {
+    if (blocks_.empty()) throw std::out_of_range("block table is empty");
+    (void)pool_->id(new_handle);
+    if (new_handle == blocks_.back() || pool_->ref_count(new_handle) != 1 ||
+        pool_->is_published(new_handle)) {
+        throw std::invalid_argument("replacement block must be private and unpublished");
+    }
+    const auto old_handle = blocks_.back();
+    // free 先完成所有旧句柄校验；随后句柄赋值不会抛异常。这样一旦
+    // 归还旧引用失败，调用方仍可安全归还自己持有的新页。
+    pool_->free(old_handle);
+    blocks_.back() = new_handle; // 所有权转移，不增加引用。
 }
 
 void BlockTable::clear() noexcept {

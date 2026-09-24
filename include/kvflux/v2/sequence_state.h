@@ -4,6 +4,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 
 namespace kvflux::v2 {
 
@@ -36,10 +37,22 @@ public:
 
     // 为新增 token 预留逻辑位置和物理页，不写入实际 K/V 内容。
     // 任何分配失败都会归还本次新页，请求状态保持原样。
+    // 若尾块是共享且未满的页，拒绝原地追加；改用 append_token_with_copy。
     void append_tokens(std::size_t count);
     // decode 一步：追加一个 token，并返回它的物理页和块内偏移。
     // 尾块未满时复用该页；跨过块边界时才申请新页。
     TokenLocation append_token();
+
+    // 创建共享当前全部逻辑块的新请求，包括未满尾块；每个表项增加一个引用。
+    // 后续向共享尾块追加时须走写时复制。源请求保持不变。
+    SequenceState fork_shared(RequestID new_request_id) const;
+
+    using BlockCopier = std::function<void(PhysicalBlockHandle source,
+                                           PhysicalBlockHandle destination)>;
+    // decode 追加：共享且未满的尾块先分配新页并调用 copy 完整复制 K/V，
+    // 复制成功后替换本请求的表项，再预留新 token。复制或分配失败时状态不变。
+    // 其余情况沿用 append_token，不调用 copy。返回的位置仍需由调用方写入新 K/V。
+    TokenLocation append_token_with_copy(const BlockCopier& copy);
 
 
     // 查询本请求的逻辑块和 token 对应的物理页；越界抛 std::out_of_range。

@@ -34,6 +34,10 @@ public:
     void* slot_address(KVKind kind, PhysicalSlot slot,
                        std::size_t head, std::size_t dimension) const;
 
+    // 将源页的完整 K/V 内容复制到私有的新页，并等待默认 stream 完成。
+    // 仅供写时复制等场景使用；调用期间两页均须保持引用，且不能并发修改。
+    void copy_block(PhysicalBlockHandle source, PhysicalBlockHandle destination) const;
+
 private:
     PhysicalBlockPool& pool_; // pool 必须比 storage 活得更久。
     PagedKVLayout layout_;

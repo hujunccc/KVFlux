@@ -44,7 +44,8 @@ b.append_tokens(prompt_b.size() - reused);
 一个池对应同一模型及推理配置的 KV 命名空间。调用方负责提供该请求真实的
 token 前缀，且只在相同模型、适配器及位置编码配置下共享页；当前接口没有
 自动校验这些外部身份，也不负责调度。共享页是只读的，`write_paged_kv`
-不能对它们写入；本阶段不共享未满尾块，因此普通追加不会触及共享页。
+不能对它们写入。`PrefixCache` 只共享完整块；[Milestone 13](v2_copy_on_write.md)
+另外允许显式 fork 共享 partial 尾块，并在追加前执行写时复制。
 
 该生命周期与 [vLLM 的 prefix caching 设计](https://docs.vllm.ai/en/latest/design/prefix_caching/)
 中的 block ID、hash、ref count、block pool 和 free queue 对应。这里沿用本

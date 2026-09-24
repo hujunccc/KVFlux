@@ -27,7 +27,8 @@ if(KVFLUX_ENABLE_CUDA)
   find_package(CUDAToolkit REQUIRED)
   target_sources(kvflux PRIVATE src/gpu_memory_pool.cpp src/pinned_memory.cpp
                                src/cuda_stream.cpp src/async_transfer.cpp src/tiered_block_manager.cpp
-                               src/v2/paged_kv_storage.cpp src/v2/paged_kv_write.cu
+                               src/v2/paged_kv_storage.cpp src/v2/copy_on_write.cpp
+                               src/v2/paged_kv_write.cu
                                src/v2/paged_kv_read.cu src/v2/paged_attention.cu)
   target_link_libraries(kvflux PUBLIC CUDA::cudart)
 endif()

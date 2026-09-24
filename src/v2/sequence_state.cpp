@@ -33,6 +33,10 @@ void SequenceState::append_tokens(std::size_t count) {
     if (count > std::numeric_limits<std::size_t>::max() - num_tokens_) {
         throw std::overflow_error("sequence token count overflow");
     }
+    if (num_tokens_ % block_size_ != 0 &&
+        block_table_.ref_count(block_table_.size() - 1) > 1) {
+        throw std::logic_error("shared partial block requires copy-on-write");
+    }
 
     const auto next_tokens = num_tokens_ + count;
     const auto needed_blocks = next_tokens / block_size_ + (next_tokens % block_size_ != 0);
@@ -50,6 +54,40 @@ TokenLocation SequenceState::append_token() {
     const auto token_index = num_tokens_;
     append_tokens(1);
     return token_location(token_index);
+}
+
+SequenceState SequenceState::fork_shared(RequestID new_request_id) const {
+    SequenceState fork(new_request_id, block_table_.pool());
+    // append_shared 逐项 retain；如果中途失败，fork 的析构会归还已取得的引用。
+    for (std::size_t logical = 0; logical < block_table_.size(); ++logical) {
+        fork.block_table_.append_shared(block_table_, logical);
+    }
+    fork.num_tokens_ = num_tokens_;
+    return fork;
+}
+
+TokenLocation SequenceState::append_token_with_copy(const BlockCopier& copy) {
+    if (num_tokens_ == std::numeric_limits<std::size_t>::max()) {
+        throw std::overflow_error("sequence token count overflow");
+    }
+    const auto offset = num_tokens_ % block_size_;
+    if (offset == 0 || block_table_.ref_count(block_table_.size() - 1) == 1) {
+        return append_token();
+    }
+    if (!copy) throw std::invalid_argument("copy callback is required for shared partial block");
+
+    const auto old_handle = block_table_.handle(block_table_.size() - 1);
+    auto& pool = block_table_.pool();
+    const auto new_handle = pool.allocate();
+    try {
+        copy(old_handle, new_handle); // 复制完成前不能改变请求映射或 token 数。
+        block_table_.replace_last_owned(new_handle);
+    } catch (...) {
+        pool.free(new_handle);
+        throw;
+    }
+    ++num_tokens_;
+    return {new_handle.id, offset};
 }
 
 void SequenceState::append_cached_full_block(PhysicalBlockHandle handle) {
