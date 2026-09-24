@@ -6,6 +6,8 @@ v2 已开始实施：[Milestone 1 Physical Block Pool](docs/v2_physical_block_po
 
 [Milestone 12 Block Sharing](docs/v2_block_sharing.md) 已把完整前缀哈希、引用计数、缓存命中及零引用页淘汰接到 v2 请求和真实物理页。[Milestone 13 Copy-on-Write](docs/v2_copy_on_write.md) 支持共享 partial 尾页后的安全追加。请求调度仍属后续阶段。
 
+[Milestone 14 Sequence 生命周期](docs/v2_sequence_lifecycle.md) 将单请求 prefill、KV 写入、decode、attention 和页释放串成可调用流程。批量请求调度仍属后续阶段。
+
 ## v2 Slot Mapping
 
 控制面按 batch 顺序生成 `slot_mapping[i] = physical_block_id × block_size + offset_in_block`。例如 `block_size=16`，A 的 token 34 映射到 P81 得到 **1298**，B 的 token 17 映射到 P32 得到 **513**，C 的 token 80 映射到 P138 得到 **2208**。Paged KV Write kernel 已消费这段数组；详见 [接口、边界和示例](docs/v2_slot_mapping.md)。
@@ -180,6 +182,8 @@ v2 从 [物理页池说明](docs/v2_physical_block_pool.md)、[Block Table 说�
 共享完整 KV 页的调用顺序见 [Block Sharing 说明](docs/v2_block_sharing.md) 与 [PrefixCache 接口](include/kvflux/v2/prefix_cache.h)。
 
 共享 partial 尾页的追加见 [Copy-on-Write 说明](docs/v2_copy_on_write.md) 与 [设备端入口](include/kvflux/v2/copy_on_write.h)。
+
+单请求完整运行流程见 [Sequence 生命周期说明](docs/v2_sequence_lifecycle.md) 与 [接口](include/kvflux/v2/sequence_lifecycle.h)。
 
 1. [项目主线](docs/project_mainline.md)：请求生命周期与后续版本路线。
 2. [设计与接口说明](docs/design.md)：状态机、数据结构、所有权、错误处理与复杂度。

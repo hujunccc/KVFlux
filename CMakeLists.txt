@@ -28,6 +28,7 @@ if(KVFLUX_ENABLE_CUDA)
   target_sources(kvflux PRIVATE src/gpu_memory_pool.cpp src/pinned_memory.cpp
                                src/cuda_stream.cpp src/async_transfer.cpp src/tiered_block_manager.cpp
                                src/v2/paged_kv_storage.cpp src/v2/copy_on_write.cpp
+                               src/v2/sequence_lifecycle.cpp
                                src/v2/paged_kv_write.cu
                                src/v2/paged_kv_read.cu src/v2/paged_attention.cu)
   target_link_libraries(kvflux PUBLIC CUDA::cudart)
@@ -60,6 +61,8 @@ if(KVFLUX_BUILD_EXAMPLES)
     target_link_libraries(kvflux_paged_kv_write_demo PRIVATE KVFlux::kvflux)
     add_executable(kvflux_paged_kv_read_demo examples/paged_kv_read.cpp)
     target_link_libraries(kvflux_paged_kv_read_demo PRIVATE KVFlux::kvflux)
+    add_executable(kvflux_sequence_lifecycle_demo examples/sequence_lifecycle.cpp)
+    target_link_libraries(kvflux_sequence_lifecycle_demo PRIVATE KVFlux::kvflux)
     add_executable(kvflux_gpu_demo examples/gpu_pool.cpp)
     target_link_libraries(kvflux_gpu_demo PRIVATE KVFlux::kvflux)
     add_executable(kvflux_async_demo examples/async_transfer.cpp)

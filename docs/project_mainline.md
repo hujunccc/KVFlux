@@ -68,6 +68,8 @@ v2 Milestone 1 的 [Physical Block Pool](v2_physical_block_pool.md) 已实现：
 
 Milestone 12 的 [Block Sharing](v2_block_sharing.md) 已实现：v2 物理页池重新接入 v0 的完整前缀哈希、引用计数和缓存队列；多个请求可在真实 KV 页上共享已完成的完整块。Milestone 13 的 [Copy-on-Write](v2_copy_on_write.md) 已实现：显式 fork 可共享 partial 尾页，追加时复制真实 K/V 并切换当前请求的表项。请求调度仍未实现。
 
+Milestone 14 的 [Sequence 生命周期](v2_sequence_lifecycle.md) 已实现：同步单请求入口把 prefill、KV 写入、decode、attention 和结束时的物理页引用释放串起来；批量请求调度仍留给上层。
+
 | 阶段 | 目标 | 验收重点 |
 | --- | --- | --- |
 | v2 | 支持 append、尾块填充和 copy-on-write | 共享请求追加 token 不会修改别人的历史 |
