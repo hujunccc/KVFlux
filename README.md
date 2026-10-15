@@ -8,6 +8,8 @@ v2 已开始实施：[Milestone 1 Physical Block Pool](docs/v2_physical_block_po
 
 [Milestone 14 Sequence 生命周期](docs/v2_sequence_lifecycle.md) 将单请求 prefill、KV 写入、decode、attention 和页释放串成可调用流程。批量请求调度仍属后续阶段。
 
+V3 已开始：[Milestone 0 Tier Abstraction + Cache Directory](docs/v3_cache_directory.md) 在不传输任何数据的前提下，用 GPU/CPU/NVMe 三级 Tier 和 Cache Directory 描述每份 KV 的逻辑身份、三级位置与各层副本状态。
+
 V2 的 15 项必备正确性检查、对应 CTest 用例及 CPU/GPU 运行命令见 [测试矩阵](docs/v2_test_matrix.md)。
 
 ## v2：logical → physical → slot

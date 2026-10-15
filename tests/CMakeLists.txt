@@ -54,6 +54,14 @@ add_executable(kvflux_layout_tests kv_layout_test.cpp)
 target_link_libraries(kvflux_layout_tests PRIVATE KVFlux::kvflux)
 add_test(NAME kvflux_layout_tests COMMAND kvflux_layout_tests)
 
+add_executable(kvflux_v3_tier_tests v3_tier_test.cpp)
+target_link_libraries(kvflux_v3_tier_tests PRIVATE KVFlux::kvflux)
+add_test(NAME kvflux_v3_tier_tests COMMAND kvflux_v3_tier_tests)
+
+add_executable(kvflux_v3_cache_directory_tests v3_cache_directory_test.cpp)
+target_link_libraries(kvflux_v3_cache_directory_tests PRIVATE KVFlux::kvflux)
+add_test(NAME kvflux_v3_cache_directory_tests COMMAND kvflux_v3_cache_directory_tests)
+
 if(KVFLUX_ENABLE_CUDA)
   add_executable(kvflux_sequence_lifecycle_tests sequence_lifecycle_test.cpp)
   target_link_libraries(kvflux_sequence_lifecycle_tests PRIVATE KVFlux::kvflux)
