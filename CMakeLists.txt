@@ -33,7 +33,7 @@ if(KVFLUX_ENABLE_CUDA)
                                src/v2/paged_kv_storage.cpp src/v2/copy_on_write.cpp
                                src/v2/sequence_lifecycle.cpp
                                src/v3/gpu_chunk_store.cpp src/v3/pinned_chunk_pool.cpp
-                               src/v3/gpu_cpu_transfer.cpp
+                               src/v3/gpu_cpu_transfer.cpp src/v3/migration_manager.cpp
                                src/v2/paged_kv_write.cu
                                src/v2/paged_kv_read.cu src/v2/paged_attention.cu)
   target_link_libraries(kvflux PUBLIC CUDA::cudart)

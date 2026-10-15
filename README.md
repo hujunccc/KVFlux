@@ -8,7 +8,7 @@ v2 已开始实施：[Milestone 1 Physical Block Pool](docs/v2_physical_block_po
 
 [Milestone 14 Sequence 生命周期](docs/v2_sequence_lifecycle.md) 将单请求 prefill、KV 写入、decode、attention 和页释放串成可调用流程。批量请求调度仍属后续阶段。
 
-V3 已开始：[Milestone 0 Tier Abstraction + Cache Directory](docs/v3_cache_directory.md) 在不传输任何数据的前提下，用 GPU/CPU/NVMe 三级 Tier 和 Cache Directory 描述每份 KV 的逻辑身份、三级位置与各层副本状态。[Milestone 1 GPU ↔ CPU Offloading](docs/v3_gpu_cpu_offloading.md) 实现 KV chunk 经 cudaMemcpyAsync 离开 GPU 并在新的物理页上字节级恢复，传输中的副本受目录状态保护不能提前释放；[Milestone 2 NVMe Storage Backend](docs/v3_nvme_backend.md) 用临时文件 + 原子 rename 的文件型 Chunk Store 打通 GPU → CPU → NVMe → CPU → GPU 三级闭环，含 header/payload 双重校验、身份逐项校验与配额管理。迁移目前仍是同步的。
+V3 已开始：[Milestone 0 Tier Abstraction + Cache Directory](docs/v3_cache_directory.md) 在不传输任何数据的前提下，用 GPU/CPU/NVMe 三级 Tier 和 Cache Directory 描述每份 KV 的逻辑身份、三级位置与各层副本状态。[Milestone 1 GPU ↔ CPU Offloading](docs/v3_gpu_cpu_offloading.md) 实现 KV chunk 经 cudaMemcpyAsync 离开 GPU 并在新的物理页上字节级恢复，传输中的副本受目录状态保护不能提前释放；[Milestone 2 NVMe Storage Backend](docs/v3_nvme_backend.md) 用临时文件 + 原子 rename 的文件型 Chunk Store 打通 GPU → CPU → NVMe → CPU → GPU 三级闭环，含 header/payload 双重校验、身份逐项校验与配额管理。[Milestone 3 Asynchronous Migration Engine](docs/v3_async_migration.md) 用 submit/poll/wait/cancel 的异步任务引擎取代同步迁移：GPU↔CPU 走独立 transfer stream + CUDA event，NVMe 走 I/O 线程池，实测 100 个任务与真实 paged attention 并发执行结果全部正确，迁移与计算重叠 speedup 约 2x。
 
 V2 的 15 项必备正确性检查、对应 CTest 用例及 CPU/GPU 运行命令见 [测试矩阵](docs/v2_test_matrix.md)。
 

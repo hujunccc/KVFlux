@@ -1,0 +1,4 @@
+chunk_size_bytes,num_chunks,num_kernels,compute_ms,migration_ms,sequential_ms,overlapped_ms,speedup
+4194304,8,1,7.67587,5.52238,13.0114,7.67048,1.69629
+16777216,8,3,20.2696,22.7055,42.9996,21.8201,1.97064
+67108864,8,13,88.1559,85.7459,176.693,100.034,1.76634
