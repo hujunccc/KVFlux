@@ -1,6 +1,9 @@
 add_executable(kvflux_benchmark block_manager_benchmark.cpp)
 target_link_libraries(kvflux_benchmark PRIVATE KVFlux::kvflux)
 
+add_executable(kvflux_v3_nvme_benchmark v3_nvme_io_benchmark.cpp)
+target_link_libraries(kvflux_v3_nvme_benchmark PRIVATE KVFlux::kvflux)
+
 if(KVFLUX_ENABLE_CUDA)
   # 只有模拟计算基准包含 kernel；核心库仍只依赖 CUDA Runtime。
   enable_language(CUDA)
