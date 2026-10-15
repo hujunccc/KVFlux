@@ -158,6 +158,13 @@ void duplicate_and_dangling_references_are_rejected() {
     try { t.directory.destroy(a); }
     catch (const std::logic_error&) { logic = true; }
     CHECK(logic);
+    // 传输中的副本拒绝移除，防止槽位在复制完成前被回收。
+    logic = false;
+    try { t.directory.remove(a, StorageTier::CPU); }
+    catch (const std::logic_error&) { logic = true; }
+    CHECK(logic);
+    t.directory.set_state(a, StorageTier::CPU, ChunkState::READY);
+    t.directory.set_state(a, StorageTier::NVME, ChunkState::ERROR); // 失败副本允许清理
     t.directory.remove(a, StorageTier::GPU);
     t.directory.remove(a, StorageTier::CPU);
     t.directory.remove(a, StorageTier::NVME);

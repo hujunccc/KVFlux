@@ -104,6 +104,11 @@ void CacheDirectory::remove(const CacheKey& key, StorageTier tier) {
     if (!slot.has_value()) {
         throw std::logic_error("tier holds no replica of this chunk");
     }
+    // 传输进行中的副本不能移除，否则槽位会在数据复制完成前被回收。
+    // 失败的副本（ERROR）允许移除以清理现场。
+    if (slot->state != ChunkState::READY && slot->state != ChunkState::ERROR) {
+        throw std::logic_error("replica is not ready; finish or fail its transfer first");
+    }
     tier_for(tier).release(slot->location);
     slot.reset();
     record.last_access = std::chrono::steady_clock::now();

@@ -15,6 +15,8 @@ if(KVFLUX_ENABLE_CUDA)
   set_target_properties(kvflux_cache_benchmark PROPERTIES CUDA_STANDARD 17 CUDA_STANDARD_REQUIRED ON)
   add_executable(kvflux_v2_benchmark v2_paged_benchmark.cpp)
   target_link_libraries(kvflux_v2_benchmark PRIVATE KVFlux::kvflux)
+  add_executable(kvflux_v3_bandwidth_benchmark v3_gpu_cpu_bandwidth.cpp)
+  target_link_libraries(kvflux_v3_bandwidth_benchmark PRIVATE KVFlux::kvflux)
   # CUPTI Activity 可记录真实 GPU kernel / memcpy 时间，不依赖 Nsight GUI。
   find_path(KVFLUX_CUPTI_INCLUDE_DIR cupti.h)
   find_library(KVFLUX_CUPTI_LIBRARY cupti)

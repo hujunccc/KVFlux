@@ -49,7 +49,9 @@ ref count、pin count、last access time。
 
 副本槽位只通过目录向对应 Tier 申请（`place`）和归还（`remove`），因此
 不会产生重复或悬空引用：同层第二份副本抛 `logic_error`；有副本、引用或
-钉住时 `destroy` 被拒绝。`stats(tier)` 同时给出层自身的容量/字节计数和
+钉住时 `destroy` 被拒绝。V3.1 起 `remove` 只接受 READY 或 ERROR 的副本，
+传输进行中（COPYING/LOADING/EVICTING）的副本不能被移除，防止槽位在
+复制完成前被回收。`stats(tier)` 同时给出层自身的容量/字节计数和
 目录登记的副本数，两者一致。
 
 chunk 身份与各层副本状态分开管理，同一 chunk 可以同时：

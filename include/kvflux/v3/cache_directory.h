@@ -84,7 +84,9 @@ public:
     // logic_error；层满时抛 CapacityError。
     TierLocation place(const CacheKey& key, StorageTier tier,
                        ChunkState state = ChunkState::READY);
-    // 移除副本并把槽位还给对应层。该层无副本时抛 logic_error。
+    // 移除副本并把槽位还给对应层。该层无副本时抛 logic_error；
+    // 副本状态为 COPYING/LOADING/EVICTING（传输进行中）时也抛 logic_error，
+    // 只有 READY 或 ERROR 的副本允许移除。
     void remove(const CacheKey& key, StorageTier tier);
     // 只改指定层副本的状态，不影响其他层。该层无副本时抛 logic_error。
     void set_state(const CacheKey& key, StorageTier tier, ChunkState state);

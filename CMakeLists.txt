@@ -17,6 +17,7 @@ add_library(kvflux src/block_manager.cpp src/physical_block_pool.cpp
                    src/v2/paged_kv_layout.cpp src/v2/paged_kv_read_table.cpp
                    src/v2/reference_attention.cpp
                    src/v3/tier.cpp src/v3/cache_directory.cpp
+                   src/v3/host_buffers.cpp
                    src/kv_layout.cpp src/metrics.cpp)
 add_library(KVFlux::kvflux ALIAS kvflux)
 target_include_directories(kvflux PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -30,6 +31,8 @@ if(KVFLUX_ENABLE_CUDA)
                                src/cuda_stream.cpp src/async_transfer.cpp src/tiered_block_manager.cpp
                                src/v2/paged_kv_storage.cpp src/v2/copy_on_write.cpp
                                src/v2/sequence_lifecycle.cpp
+                               src/v3/gpu_chunk_store.cpp src/v3/pinned_chunk_pool.cpp
+                               src/v3/gpu_cpu_transfer.cpp
                                src/v2/paged_kv_write.cu
                                src/v2/paged_kv_read.cu src/v2/paged_attention.cu)
   target_link_libraries(kvflux PUBLIC CUDA::cudart)
